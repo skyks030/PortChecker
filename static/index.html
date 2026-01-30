@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Hilfe Center</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Troubleshooting Mode (Default) -->
+        <main id="troubleshoot-view" class="view active">
+            <header class="main-header">
+                <div class="logo-area">
+                    <div class="logo-icon">🆘</div>
+                    <h1>Studio Hilfe</h1>
+                </div>
+                <p class="subtitle">Wie kann ich dir helfen?</p>
+            </header>
+
+            <div class="troubleshoot-grid" id="troubleshoot-options">
+                <!-- Options will be injected here -->
+                <div class="loading-spinner"></div>
+            </div>
+
+            <div id="diagnostic-result" class="diagnostic-result hidden">
+                <div class="result-header">
+                    <h2 id="result-title">Analyse läuft...</h2>
+                    <button class="close-btn" id="close-result">×</button>
+                </div>
+                <div class="result-content" id="result-content">
+                    <div class="scanning-animation">
+                        <div class="scan-line"></div>
+                        <p>Überprüfe Systeme...</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="main-footer">
+                <button id="show-status-btn" class="secondary-btn">System Status</button>
+                <div class="footer-actions">
+                    <button id="show-settings-btn" class="icon-btn" title="Einstellungen">⚙️</button>
+                    <button id="show-add-server-btn" class="secondary-btn" style="margin-left: 10px;">+ Server</button>
+                </div>
+            </footer>
+        </main>
+
+        <!-- Classic Status Mode -->
+        <main id="status-view" class="view">
+            <header class="status-header">
+                <button id="back-to-home-btn" class="icon-btn">← Zurück</button>
+                <h1>System Status</h1>
+                <button id="refresh-btn" class="icon-btn" title="Aktualisieren" style="font-size: 1.5rem;">🔄</button>
+                <div class="status-indicator" id="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Verbunden</span>
+                </div>
+            </header>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <span class="stat-value" id="total-devices">-</span>
+                    <span class="stat-label">Geräte</span>
+                </div>
+                <!-- ... existing stats ... -->
+                <div class="stat-card up">
+                    <span class="stat-value" id="devices-up">-</span>
+                    <span class="stat-label">Online</span>
+                </div>
+                <div class="stat-card down">
+                    <span class="stat-value" id="devices-down">-</span>
+                    <span class="stat-label">Offline</span>
+                </div>
+            </div>
+
+            <div class="devices-grid" id="devices-grid">
+                <!-- Devices will be injected here -->
+            </div>
+        </main>
+
+        <!-- Add Server Mode -->
+        <main id="add-server-view" class="view">
+            <header class="status-header">
+                <button id="back-from-add-btn" class="icon-btn">← Zurück</button>
+                <h1>Server hinzufügen</h1>
+            </header>
+
+            <div class="form-container">
+                <form id="add-server-form">
+                    <div class="form-group">
+                        <label for="server-name">Name des Servers</label>
+                        <input type="text" id="server-name" name="server-name" placeholder="z.B. Render-Node 01"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="server-host">IP-Adresse oder Hostname</label>
+                        <input type="text" id="server-host" name="server-host" placeholder="z.B. 192.168.1.50" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="server-ports">Ports (kommagetrennt)</label>
+                        <input type="text" id="server-ports" name="server-ports" placeholder="z.B. 80, 443, 8080"
+                            required>
+                        <small>Diese Ports werden auf Erreichbarkeit geprüft</small>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-container">
+                            Benachrichtigungen aktivieren
+                            <input type="checkbox" id="notifications-enabled" name="notifications-enabled" checked>
+                            <span class="checkmark"></span>
+                        </label>
+                        <small>Sendet Nachrichten an den globalen Teams Webhook</small>
+                    </div>
+
+                    <button type="submit" class="primary-btn">Server hinzufügen</button>
+                    <div id="add-server-message" style="margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </main>
+
+        <!-- Edit Server Mode -->
+        <main id="edit-server-view" class="view">
+            <header class="status-header">
+                <button id="back-from-edit-btn" class="icon-btn">← Zurück</button>
+                <h1>Server bearbeiten</h1>
+            </header>
+
+            <div class="form-container">
+                <form id="edit-server-form">
+                    <input type="hidden" id="edit-original-name">
+
+                    <div class="form-group">
+                        <label for="edit-server-name">Name des Servers</label>
+                        <input type="text" id="edit-server-name" name="server-name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-server-host">IP-Adresse oder Hostname</label>
+                        <input type="text" id="edit-server-host" name="server-host" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-server-ports">Ports (kommagetrennt)</label>
+                        <input type="text" id="edit-server-ports" name="server-ports" required>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-container">
+                            Benachrichtigungen aktivieren
+                            <input type="checkbox" id="edit-notifications-enabled" name="notifications-enabled">
+                            <span class="checkmark"></span>
+                        </label>
+                    </div>
+
+                    <div class="button-group" style="display: flex; gap: 10px;">
+                        <button type="button" id="delete-server-btn" class="secondary-btn"
+                            style="border-color: var(--error-color); color: var(--error-color);">Löschen</button>
+                        <button type="submit" class="primary-btn">Änderungen speichern</button>
+                    </div>
+                    <div id="edit-server-message" style="margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </main>
+
+        <!-- Settings Mode -->
+        <main id="settings-view" class="view">
+            <header class="status-header">
+                <button id="back-from-settings-btn" class="icon-btn">← Zurück</button>
+                <h1>Einstellungen</h1>
+            </header>
+
+            <div class="form-container">
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label for="settings-webhook">Globaler Teams Webhook URL</label>
+                        <input type="url" id="settings-webhook" name="webhook-url"
+                            placeholder="https://outlook.office.com/webhook/...">
+                        <small>Wird für alle Benachrichtigungen verwendet</small>
+                    </div>
+
+                    <button type="submit" class="primary-btn">Speichern</button>
+                    <div id="settings-message" style="margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

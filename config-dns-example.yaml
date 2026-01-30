@@ -1,0 +1,56 @@
+# Network Monitoring System - Konfiguration
+# Mit DNS-Namen Beispiel
+
+# Microsoft Teams Webhook URL
+teams_webhook_url: "https://your-organization.webhook.office.com/webhookb2/..."
+
+# Monitoring Einstellungen
+monitoring:
+  check_interval: 30
+  check_timeout: 10
+  failure_threshold: 1
+  notification_cooldown: 300
+  
+  # RAVENNA/AES67 spezifische Einstellungen
+  ravenna:
+    ptp_domain: 0
+    ptp_multicast: "224.0.1.129"
+    ptp_ports: [319, 320]
+    audio_dscp: 34
+    ptp_dscp: 46
+
+# Web Server Einstellungen
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+# Geräte mit DNS-Namen
+devices:
+
+  # HAPI II mit DNS-Name
+  - name: "HAPI-II"
+    checks:
+      - type: "ping"
+        target: "hapi-ii.studio.local"
+      - type: "ptp"
+        host: "hapi-ii.studio.local"
+      - type: "ravenna"
+        host: "hapi-ii.studio.local"
+        port: 554
+        service_type: "rtsp"
+      - type: "rtp"
+        host: "hapi-ii.studio.local"
+        port: 5004
+  
+  # Workstation mit DNS-Name
+  - name: "KINO Workstation"
+    checks:
+      - type: "ping"
+        target: "kino.studio.local"
+      - type: "ptp"
+        host: "kino.studio.local"
+      - type: "multicast"
+        multicast_group: "239.69.0.1"  # Multicast bleibt IP
+        port: 5004
+      - type: "http"
+        url: "http://kino.studio.local:8080"

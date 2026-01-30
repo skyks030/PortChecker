@@ -1,0 +1,59 @@
+teams_webhook_url: ''
+monitoring:
+  check_interval: 30
+  check_timeout: 10
+  failure_threshold: 1
+  notification_cooldown: 300
+  ravenna:
+    ptp_domain: 0
+    ptp_multicast: 224.0.1.129
+    ptp_ports:
+    - 319
+    - 320
+    audio_dscp: 34
+    ptp_dscp: 46
+server:
+  host: 0.0.0.0
+  port: 8000
+troubleshooting:
+- id: no-sound
+  title: Kein Ton
+  description: Probleme mit Audio-Streams oder Verbindungen
+  icon: 🔊
+  check_tags:
+  - audio
+  - rtp
+  - ptp
+  - connection
+- id: no-image
+  title: Kein Bild
+  description: Probleme mit Video-Signalen oder GUI
+  icon: 📺
+  check_tags:
+  - video
+  - rtsp
+  - app
+  - connection
+- id: connection-issue
+  title: Keine Verbindung
+  description: Netzwerk- oder Internetprobleme
+  icon: 🔌
+  check_tags:
+  - connection
+  - ping
+  - dns
+devices:
+- name: QSYS
+  checks:
+  - type: ping
+    target: 192.168.123.157
+    tags:
+    - connection
+    - ping
+  - type: port
+    host: 192.168.123.157
+    port: 80
+    description: Port 80
+    tags:
+    - app
+  notifications_enabled: true

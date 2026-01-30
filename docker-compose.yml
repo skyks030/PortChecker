@@ -1,0 +1,14 @@
+services:
+  network-monitor:
+    build: .
+    container_name: studio-hilfe
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount config so changes persist and can be edited on host
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Add capabilities for ping/network checks if needed depending on docker setup
+    # capability: NET_ADMIN might be needed for some advanced network checks
