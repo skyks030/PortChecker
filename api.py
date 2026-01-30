@@ -56,7 +56,6 @@ async def monitoring_loop():
     
     check_interval = config.get("monitoring", {}).get("check_interval", 30)
     failure_threshold = config.get("monitoring", {}).get("failure_threshold", 2)
-    notification_cooldown = config.get("monitoring", {}).get("notification_cooldown", 300)
     
     logger.info(f"Monitoring Loop gestartet (Intervall: {check_interval}s)")
     
@@ -91,17 +90,9 @@ async def monitoring_loop():
                 if current_status != previous_status:
                     # Gerät ist ausgefallen
                     if current_status == "down" and consecutive_failures >= failure_threshold:
-                        # Prüfen ob Cooldown abgelaufen ist
-                        # Prüfen ob Cooldown abgelaufen ist
+                        # Keine Cooldown-Prüfung mehr - jede Statusänderung wird gemeldet!
+                        # Das stellt sicher, dass auch kurz aufeinanderfolgende Ausfälle verschiedener Server gemeldet werden.
                         should_notify = True
-                        if device.last_notification_time:
-                            # Zeit seit letzter Benachrichtigung berechnen
-                            # Wir nutzen device.last_check_time da dies ein datetime Objekt ist
-                            if device.last_check_time and device.last_notification_time:
-                                time_diff = (device.last_check_time - device.last_notification_time).total_seconds()
-                                if time_diff < notification_cooldown:
-                                    logger.info(f"Benachrichtigung für {device_name} unterdrückt (Cooldown aktiv: {int(time_diff)}s < {notification_cooldown}s)")
-                                    should_notify = False
                         
                         if should_notify:
                             # Fehlerdetails sammeln
