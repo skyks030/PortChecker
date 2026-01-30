@@ -458,6 +458,33 @@ async def save_settings(request: SettingsRequest) -> Dict[str, Any]:
          raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/settings/test-webhook")
+async def test_webhook(request: SettingsRequest) -> Dict[str, Any]:
+    """Sendet eine Test-Nachricht an den Webhook"""
+    global teams_notifier
+    
+    success = await teams_notifier.send_test_notification(request.teams_webhook_url)
+    
+    if success:
+        return {"status": "success", "message": "Test-Nachricht gesendet"}
+    else:
+        raise HTTPException(status_code=500, detail="Konnte Test-Nachricht nicht senden. Überprüfe die URL.")
+
+
+@app.get("/api/version")
+async def get_version() -> Dict[str, str]:
+    """Gibt die aktuelle Version zurück"""
+    try:
+        with open("version.txt", "r") as f:
+            version = f.read().strip()
+        return {"version": version}
+    except FileNotFoundError:
+        return {"version": "unknown"}
+    except Exception as e:
+        logger.error(f"Fehler beim Lesen der Version: {e}")
+        return {"version": "error"}
+
+
 @app.post("/api/test")
 async def trigger_manual_test() -> Dict[str, Any]:
     """Löst einen manuellen Test aller Geräte aus"""

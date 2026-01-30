@@ -153,3 +153,24 @@ class TeamsNotifier:
             message=f"✅ {device_name} ist wieder erreichbar!",
             details="Das Gerät antwortet wieder normal."
         )
+
+    async def send_test_notification(self, webhook_url: Optional[str] = None) -> bool:
+        """Sendet eine Test-Benachrichtigung"""
+        # Verwende temporäre URL wenn angegeben, sonst gespeicherte
+        original_url = self.webhook_url
+        if webhook_url:
+            self.webhook_url = webhook_url
+            self.enabled = True # Temporarily enable for test
+            
+        try:
+            return await self.send_alert(
+                device_name="Test-System",
+                check_type="SYSTEM",
+                status="WARNING",
+                message="🧪 Dies ist eine Test-Benachrichtigung",
+                details="Wenn du diese Nachricht siehst, funktioniert die Webhook-Integration!"
+            )
+        finally:
+            if webhook_url:
+                self.webhook_url = original_url
+                self.enabled = bool(original_url)

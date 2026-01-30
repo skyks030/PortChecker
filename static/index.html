@@ -185,12 +185,19 @@
                         <small>Wird für alle Benachrichtigungen verwendet</small>
                     </div>
 
-                    <button type="submit" class="primary-btn">Speichern</button>
+                    <div class="button-group" style="display: flex; gap: 10px;">
+                        <button type="button" id="test-webhook-btn" class="secondary-btn">Test Nachricht senden</button>
+                        <button type="submit" class="primary-btn">Speichern</button>
+                    </div>
                     <div id="settings-message" style="margin-top: 1rem;"></div>
                 </form>
             </div>
         </main>
     </div>
+
+    <footer class="app-footer">
+        v<span id="app-version">...</span>
+    </footer>
 
     <script src="/static/app.js"></script>
 </body>

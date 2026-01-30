@@ -11,6 +11,7 @@ class PortCheckerApp {
     async init() {
         // Load troubleshooting options
         await this.loadOptions();
+        await this.loadVersion();
 
         // Setup Event Listeners
         this.setupEventListeners();
@@ -21,6 +22,17 @@ class PortCheckerApp {
 
         // Initialize WebSocket for background status
         this.initWebSocket();
+    }
+
+    async loadVersion() {
+        try {
+            const res = await fetch('/api/version');
+            const data = await res.json();
+            const el = document.getElementById('app-version');
+            if (el) el.textContent = data.version || '?.?.?';
+        } catch (e) {
+            console.warn("Failed to load version", e);
+        }
     }
 
     async loadOptions() {
@@ -224,6 +236,8 @@ class PortCheckerApp {
             settingsForm.addEventListener('submit', (e) => this.handleSaveSettings(e));
         }
 
+        addListener('test-webhook-btn', 'click', () => this.handleTestWebhook());
+
         const editServerForm = document.getElementById('edit-server-form');
         if (editServerForm) {
             editServerForm.addEventListener('submit', (e) => this.handleUpdateServer(e));
@@ -283,8 +297,44 @@ class PortCheckerApp {
                 throw new Error("Fehler beim Speichern");
             }
         } catch (e) {
-            msgDiv.textContent = "Fehler beim Speichern.";
             msgDiv.style.color = "var(--error-color)";
+            btn.disabled = false;
+        }
+    }
+
+    async handleTestWebhook() {
+        const msgDiv = document.getElementById('settings-message');
+        const url = document.getElementById('settings-webhook').value;
+        const btn = document.getElementById('test-webhook-btn');
+
+        if (!url) {
+            msgDiv.textContent = "Bitte eine Webhook URL eingeben vor dem Test.";
+            msgDiv.style.color = "var(--warning-color)";
+            return;
+        }
+
+        btn.disabled = true;
+        msgDiv.textContent = "Sende Test-Nachricht...";
+        msgDiv.style.color = "var(--text-secondary)";
+
+        try {
+            const response = await fetch('/api/settings/test-webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teams_webhook_url: url })
+            });
+            const res = await response.json();
+
+            if (response.ok) {
+                msgDiv.innerHTML = "✅ " + res.message;
+                msgDiv.style.color = "var(--success-color)";
+            } else {
+                throw new Error(res.detail || "Fehler beim Senden");
+            }
+        } catch (e) {
+            msgDiv.textContent = "Fehler: " + e.message;
+            msgDiv.style.color = "var(--error-color)";
+        } finally {
             btn.disabled = false;
         }
     }

@@ -522,3 +522,16 @@ h1 {
         transform: rotate(360deg);
     }
 }
+
+/* Version Footer */
+.app-footer {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 1000;
+}
