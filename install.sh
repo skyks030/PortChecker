@@ -13,6 +13,11 @@ fi
 # Make scripts executable
 chmod +x update.sh
 
+# Stop and remove existing container if it exists (to avoid name conflicts)
+echo "🧹 Bereinige alte Installationen..."
+docker stop studio-hilfe 2>/dev/null || true
+docker rm studio-hilfe 2>/dev/null || true
+
 # Build and start container
 echo "🚀 Baue und starte Container..."
 docker compose up -d --build
@@ -22,7 +27,11 @@ if [ $? -eq 0 ]; then
     echo "✅ Installation erfolgreich!"
     
     # Get local IP
-    LOCAL_IP=$(hostname -I | awk '{print $1}' || echo "localhost")
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || echo "localhost")
+    else
+        LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+    fi
     
     echo ""
     echo "Das Interface ist erreichbar unter:"
@@ -31,5 +40,6 @@ if [ $? -eq 0 ]; then
     echo "Zum Aktualisieren später einfach ./update.sh ausführen."
 else
     echo "❌ Fehler bei der Installation."
+    echo "Bitte stelle sicher, dass der Docker-Daemon läuft und du Berechtigung hast."
     exit 1
 fi
