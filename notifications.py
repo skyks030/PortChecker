@@ -43,8 +43,10 @@ class TeamsNotifier:
             True wenn erfolgreich gesendet, sonst False
         """
         if not self.enabled:
-            logger.debug(f"Benachrichtigung übersprungen (nicht konfiguriert): {device_name} - {message}")
+            logger.warning(f"Benachrichtigung für {device_name} KANN NICHT gesendet werden: Webhook URL fehlt oder ungültig.")
             return False
+            
+        logger.info(f"Sende Teams Alert für {device_name} (Status: {status})...")
         
         # Farbe basierend auf Status
         color = {
@@ -121,13 +123,14 @@ class TeamsNotifier:
                     json=card,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as response:
-                    if response.status == 200:
-                        logger.info(f"Teams Benachrichtigung gesendet: {device_name} - {status}")
+                    response_text = await response.text()
+                    if 200 <= response.status < 300:
+                        logger.info(f"Teams Benachrichtigung erfolgreich gesendet: {device_name} - {status} (Status: {response.status})")
                         return True
                     else:
                         logger.error(
                             f"Teams Benachrichtigung fehlgeschlagen: "
-                            f"Status {response.status}, {await response.text()}"
+                            f"Status {response.status}, Body: {response_text}"
                         )
                         return False
         except Exception as e:

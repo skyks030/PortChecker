@@ -88,11 +88,15 @@ async def monitoring_loop():
                 
                 # Benachrichtigung bei Status-Änderung
                 if current_status != previous_status:
+                    logger.info(f"Status-Änderung erkannt für {device_name}: {previous_status} -> {current_status} (Failures: {consecutive_failures}/{failure_threshold})")
+                    
                     # Gerät ist ausgefallen
                     if current_status == "down" and consecutive_failures >= failure_threshold:
                         # Keine Cooldown-Prüfung mehr - jede Statusänderung wird gemeldet!
                         # Das stellt sicher, dass auch kurz aufeinanderfolgende Ausfälle verschiedener Server gemeldet werden.
                         should_notify = True
+                        
+                        logger.info(f"Entscheidung für {device_name}: Sende DOWN Benachrichtigung? {should_notify}")
                         
                         if should_notify:
                             # Fehlerdetails sammeln
@@ -108,9 +112,12 @@ async def monitoring_loop():
                             # Global Webhook prüfen
                             webhook_url = config.get("teams_webhook_url", "")
                             
+                            logger.info(f"Webhook URL konfiguriert: {'Ja' if webhook_url else 'Nein'}, Notifications Enabled für Device: {device.notifications_enabled}, Consecutive Failures: {consecutive_failures}, Threshold: {failure_threshold}")
+                            
                             # Benachrichtigung nur wenn URL gesetzt UND für Gerät aktiviert
                             if webhook_url and device.notifications_enabled:
                                 try:
+                                    logger.info(f"Versuche Benachrichtigung an {webhook_url[:30]}... zu senden")
                                     # Notifier aktualisieren falls URL geändert
                                     if teams_notifier.webhook_url != webhook_url:
                                         teams_notifier.webhook_url = webhook_url
@@ -124,9 +131,12 @@ async def monitoring_loop():
                                     device.last_notification_time = device.last_check_time
                                 except Exception as e:
                                     logger.error(f"Fehler beim Senden der Benachrichtigung: {e}")
+                            else:
+                                logger.warning(f"Benachrichtigung NICHT gesendet. Webhook: {bool(webhook_url)}, Device Enabled: {device.notifications_enabled}")
                     
                     # Gerät ist wieder online
                     elif current_status == "up" and previous_status == "down":
+                        logger.info(f"Entscheidung für {device_name}: Sende UP Benachrichtigung")
                         successful_checks = [
                             c for c in result["checks"]
                             if c["status"] == "up"
