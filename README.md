@@ -45,123 +45,6 @@ Das Script führt folgende Schritte automatisch aus:
 sudo nano /opt/network-monitor/config.yaml
 ```
 
-**Wichtige Konfigurationsschritte:**
-
-#### Microsoft Teams Webhook URL
-
-1. Öffnen Sie Ihren Teams Channel
-2. Klicken Sie auf `...` → `Connectors` → `Incoming Webhook`
-3. Erstellen Sie einen neuen Webhook und kopieren Sie die URL
-4. Tragen Sie die URL in der Konfiguration ein:
-
-```yaml
-teams_webhook_url: "https://your-organization.webhook.office.com/webhookb2/..."
-```
-
-#### Geräte konfigurieren
-
-Fügen Sie Ihre zu überwachenden Geräte hinzu:
-
-```yaml
-devices:
-  - name: "Web Server"
-    checks:
-      - type: "ping"
-        target: "192.168.1.10"
-      - type: "http"
-        url: "http://192.168.1.10"
-        expected_status: 200
-      - type: "port"
-        host: "192.168.1.10"
-        port: 80
-```
-
-**Check-Typen:**
-
-- **ping**: ICMP Ping
-  ```yaml
-  - type: "ping"
-    target: "192.168.1.1"
-  ```
-
-- **http**: HTTP/HTTPS Endpoint
-  ```yaml
-  - type: "http"
-    url: "https://example.com"
-    expected_status: 200
-  ```
-
-- **port**: TCP Port
-  ```yaml
-  - type: "port"
-    host: "192.168.1.20"
-    port: 5432
-    description: "PostgreSQL"
-  ```
-
-- **ptp**: PTP Synchronisation (RAVENNA/AES67)
-  ```yaml
-  - type: "ptp"
-    host: "192.168.1.100"
-    ptp_ports: [319, 320]
-    multicast: "224.0.1.129"
-  ```
-
-- **multicast**: Multicast/IGMP Check
-  ```yaml
-  - type: "multicast"
-    multicast_group: "239.69.0.1"
-    port: 5004
-  ```
-
-- **rtp**: RTP Audio-Stream
-  ```yaml
-  - type: "rtp"
-    host: "192.168.1.100"
-    port: 5004
-    description: "RTP Audio Stream"
-  ```
-
-- **qos**: Quality of Service
-  ```yaml
-  - type: "qos"
-    host: "192.168.1.100"
-    dscp: 46  # EF für PTP oder 34 für Audio
-    description: "PTP QoS"
-  ```
-
-- **ravenna**: RAVENNA-Services (RTSP, SAP, Web-UIs)
-  ```yaml
-  - type: "ravenna"
-    host: "192.168.1.100"
-    port: 554
-    service_type: "rtsp"
-    description: "RTSP Session Management"
-  ```
-
-### DNS-Namen Unterstützung
-
-Alle Check-Typen unterstützen DNS-Namen zusätzlich zu IP-Adressen:
-
-```yaml
-devices:
-  - name: "QSYS Core"
-    checks:
-      - type: "ping"
-        target: "qsys-core.studio.local"  # DNS-Name statt IP
-      - type: "ptp"
-        host: "qsys-core.studio.local"
-      - type: "http"
-        url: "http://webserver.local"
-```
-
-**Vorteile:**
-- Lesbarere Konfiguration
-- Flexibilität bei IP-Änderungen
-- Zentrale Verwaltung über DNS
-
-**Hinweis:** Multicast-Adressen (z.B. 239.69.0.1, 224.0.1.129) sollten weiterhin als IP-Adressen angegeben werden.
-
 ### 4. Service starten
 
 ```bash
@@ -221,81 +104,6 @@ Nach Änderungen an der `config.yaml`:
 sudo systemctl restart network-monitor
 ```
 
-## Konfigurationsoptionen
-
-### Monitoring-Einstellungen
-
-```yaml
-monitoring:
-  # Intervall zwischen Checks in Sekunden
-  check_interval: 30
-  
-  # Timeout für einzelne Checks in Sekunden
-  check_timeout: 10
-  
-  # Anzahl fehlgeschlagener Checks bevor Benachrichtigung
-  failure_threshold: 2
-  
-  # Minimale Zeit zwischen Benachrichtigungen (Sekunden)
-  notification_cooldown: 300
-```
-
-### Server-Einstellungen
-
-```yaml
-server:
-  # Bind-Adresse (0.0.0.0 = alle Interfaces)
-  host: "0.0.0.0"
-  
-  # Port für Web-Interface
-  port: 8000
-```
-
-### RAVENNA/AES67 Einstellungen
-
-```yaml
-monitoring:
-  ravenna:
-    ptp_domain: 0  # PTP Domain Number (Standard: 0)
-    ptp_multicast: "224.0.1.129"  # PTP Multicast-Adresse
-    ptp_ports: [319, 320]  # PTP Event (319) und General Messages (320)
-    audio_dscp: 34  # DSCP AF41 für Audio-Traffic
-    ptp_dscp: 46    # DSCP EF für PTP-Traffic
-```
-
-**RAVENNA-Geräte-Beispiel:**
-
-```yaml
-devices:
-  - name: "QSYS Core"
-    checks:
-      - type: "ping"
-        target: "192.168.1.100"
-      - type: "ptp"
-        host: "192.168.1.100"
-        ptp_ports: [319, 320]
-      - type: "qos"
-        host: "192.168.1.100"
-        dscp: 46
-        description: "PTP QoS"
-  
-  - name: "HAPI II D/A-Wandler"
-    checks:
-      - type: "ping"
-        target: "192.168.1.101"
-      - type: "ptp"
-        host: "192.168.1.101"
-      - type: "ravenna"
-        host: "192.168.1.101"
-        port: 554
-        service_type: "rtsp"
-      - type: "rtp"
-        host: "192.168.1.101"
-        port: 5004
-```
-
-## Troubleshooting
-
 ### Service startet nicht
 
 ```bash
@@ -307,73 +115,13 @@ cd /opt/network-monitor
 sudo -u monitor venv/bin/python api.py
 ```
 
-### Teams-Benachrichtigungen funktionieren nicht
-
-1. Prüfen Sie die Webhook URL in `config.yaml`
-2. Testen Sie die URL manuell:
-   ```bash
-   curl -X POST -H 'Content-Type: application/json' \
-     -d '{"text":"Test"}' \
-     YOUR_WEBHOOK_URL
-   ```
-3. Prüfen Sie die Logs auf Fehler
-
-### Geräte werden als offline angezeigt
-
-1. Prüfen Sie die Netzwerkverbindung vom Server
-2. Testen Sie manuell:
-   ```bash
-   ping 192.168.1.10
-   curl http://192.168.1.10
-   nc -zv 192.168.1.10 80
-   ```
-3. Prüfen Sie Firewall-Regeln
-
-### Port 8000 bereits belegt
+### Port anpassen
 
 Ändern Sie den Port in `config.yaml`:
 
 ```yaml
 server:
   port: 8080  # Oder ein anderer freier Port
-```
-
-## Firewall-Konfiguration
-
-Falls eine Firewall aktiv ist, öffnen Sie den Port:
-
-```bash
-# UFW (Ubuntu/Debian)
-sudo ufw allow 8000/tcp
-
-# firewalld (CentOS/RHEL)
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
-```
-
-## Sicherheitshinweise
-
-- Das Web-Interface hat **keine Authentifizierung**
-- Verwenden Sie einen Reverse-Proxy (nginx/Apache) mit SSL für Produktionsumgebungen
-- Beschränken Sie den Zugriff über Firewall-Regeln
-- Die Teams Webhook URL ist sensibel - schützen Sie die `config.yaml`
-
-## Deinstallation
-
-```bash
-# Service stoppen und deaktivieren
-sudo systemctl stop network-monitor
-sudo systemctl disable network-monitor
-
-# Service-Datei entfernen
-sudo rm /etc/systemd/system/network-monitor.service
-sudo systemctl daemon-reload
-
-# Installationsverzeichnis entfernen
-sudo rm -rf /opt/network-monitor
-
-# Benutzer entfernen (optional)
-sudo userdel monitor
 ```
 
 ## Technische Details
@@ -394,30 +142,7 @@ sudo userdel monitor
 - aiohttp - Async HTTP
 - PyYAML - Konfiguration
 - websockets - WebSocket Support
-
-## Support & Entwicklung
-
-### Logs für Support
-
-```bash
-# System-Informationen
-uname -a
-python3 --version
-
-# Service-Status
-sudo systemctl status network-monitor
-
-# Logs
-sudo journalctl -u network-monitor -n 200 --no-pager
-```
-
 ### Erweiterungen
-
-Das System kann einfach erweitert werden:
-
-1. **Neue Check-Typen**: Erstellen Sie eine neue Klasse in `monitor.py`
-2. **Zusätzliche Benachrichtigungen**: Erweitern Sie `notifications.py`
-3. **API-Endpoints**: Fügen Sie neue Routen in `api.py` hinzu
 
 ## Lizenz
 
