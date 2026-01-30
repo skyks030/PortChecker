@@ -413,6 +413,15 @@ class PortCheckerApp {
             if (response.ok) {
                 msgDiv.innerHTML = "✅ Server aktualisiert!";
                 msgDiv.style.color = "var(--success-color)";
+
+                // Immediate refresh of local data
+                try {
+                    const statusRes = await fetch('/api/status');
+                    const statusData = await statusRes.json();
+                    this.devicesData = statusData.devices;
+                    this.updateStats();
+                } catch (e) { console.warn("Background refresh failed", e); }
+
                 setTimeout(() => {
                     msgDiv.textContent = "";
                     btn.disabled = false;
@@ -446,6 +455,15 @@ class PortCheckerApp {
             if (response.ok) {
                 msgDiv.innerHTML = "✅ Server gelöscht!";
                 msgDiv.style.color = "var(--success-color)";
+
+                // Immediate refresh of local data
+                try {
+                    const statusRes = await fetch('/api/status');
+                    const statusData = await statusRes.json();
+                    this.devicesData = statusData.devices;
+                    this.updateStats();
+                } catch (e) { console.warn("Background refresh failed", e); }
+
                 setTimeout(() => {
                     msgDiv.textContent = "";
                     this.switchView('status-view');
@@ -516,6 +534,14 @@ class PortCheckerApp {
                 msgDiv.innerHTML = `✅ Server erfolgreich hinzugefügt!`;
                 msgDiv.style.color = "var(--success-color)";
                 form.reset();
+
+                // Immediate refresh of local data
+                try {
+                    const statusRes = await fetch('/api/status');
+                    const statusData = await statusRes.json();
+                    this.devicesData = statusData.devices;
+                    this.updateStats();
+                } catch (e) { console.warn("Background refresh failed", e); }
 
                 // Nach kurzer Zeit zurück zur Status-Ansicht
                 setTimeout(() => {
