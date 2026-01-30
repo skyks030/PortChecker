@@ -20,8 +20,8 @@ Ein vollständiges Netzwerk-Monitoring-System für lokale Netzwerke mit Web-Inte
 ### Repository klonen
 
 ```bash
-git clone https://github.com/DEIN_USERNAME/studio-hilfe.git
-cd studio-hilfe
+git clone https://github.com/skyks030/PortChecker.git
+cd PortChecker
 chmod +x install.sh
 ./install.sh
 ```

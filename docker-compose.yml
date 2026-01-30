@@ -1,7 +1,7 @@
 services:
   network-monitor:
     build: .
-    container_name: studio-hilfe
+    container_name: portchecker
     restart: unless-stopped
     ports:
       - "8000:8000"

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Studio Hilfe - Installation Script
+# PortChecker - Installation Script
 # Ausführen mit: chmod +x install.sh && ./install.sh
 
-echo "🔧 Starte Installation von Studio Hilfe..."
+echo "🔧 Starte Installation von PortChecker..."
 
 # Check requirements
 if ! command -v docker &> /dev/null; then
@@ -16,6 +16,9 @@ chmod +x update.sh
 
 # Stop and remove existing container if it exists (to avoid name conflicts)
 echo "🧹 Bereinige alte Installationen..."
+docker stop portchecker 2>/dev/null || true
+docker rm portchecker 2>/dev/null || true
+# Also clean up old name if present
 docker stop studio-hilfe 2>/dev/null || true
 docker rm studio-hilfe 2>/dev/null || true
 

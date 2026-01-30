@@ -1,4 +1,4 @@
-class StudioHelper {
+class PortCheckerApp {
     constructor() {
         // Load persistend view or default
         this.currentView = localStorage.getItem('currentView') || 'troubleshoot-view';
@@ -588,5 +588,5 @@ class StudioHelper {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new StudioHelper();
+    window.app = new PortCheckerApp();
 });

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Studio Hilfe - Update Script
+# PortChecker - Update Script
 
 echo "🔍 Suche nach Updates..."
 
