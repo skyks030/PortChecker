@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Studio Hilfe - Installation Script
+# Ausführen mit: chmod +x install.sh && ./install.sh
 
 echo "🔧 Starte Installation von Studio Hilfe..."
 

@@ -12,127 +12,73 @@ Ein vollständiges Netzwerk-Monitoring-System für lokale Netzwerke mit Web-Inte
 ## Systemanforderungen
 
 - Linux Server (Ubuntu, Debian, CentOS, etc.)
-- Python 3.8 oder höher
-- Systemd (für Service-Management)
+- Docker & Docker Compose
 - Netzwerkzugriff zu den zu überwachenden Geräten
 
 ## Installation
 
-## Installation
-
-### 1. Repository klonen
+### Repository klonen
 
 ```bash
 git clone https://github.com/DEIN_USERNAME/studio-hilfe.git
 cd studio-hilfe
-```
-
-### 2. Installation ausführen
-
-```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-Das Script führt folgende Schritte automatisch aus:
-- Baut den Docker Container
-- Startet den Service im Hintergrund
-- Zeigt die lokale IP-Adresse an, unter der das Web-Interface erreichbar ist
+### Konfiguration anpassen
 
-### 3. Konfiguration anpassen
+Die Konfiguration befindet sich in `config.yaml` und wird automatisch eingebunden.
 
 ```bash
-sudo nano /opt/network-monitor/config.yaml
+nano config.yaml
 ```
 
-### 4. Service starten
+Änderungen erfordern einen Neustart des Containers (siehe unten).
+
+## Updates
+
+Um das System zu aktualisieren (neuere Version von GitHub laden):
 
 ```bash
-# Service starten
-sudo systemctl start network-monitor
-
-# Status prüfen
-sudo systemctl status network-monitor
-
-# Autostart aktivieren
-sudo systemctl enable network-monitor
+./update.sh
 ```
 
-### 5. Web-Interface öffnen
-
-Öffnen Sie einen Browser und navigieren Sie zu:
-
-```
-http://SERVER-IP:8000
-```
-
-Ersetzen Sie `SERVER-IP` mit der IP-Adresse Ihres Servers.
+Dieses Script:
+- Sichert deine `config.yaml`
+- Lädt die neuste Version von GitHub
+- Stellt deine Konfiguration wieder her
+- Baut den Container neu
 
 ## Verwendung
 
 ### Logs anzeigen
 
 ```bash
-# Live-Logs anzeigen
-sudo journalctl -u network-monitor -f
-
-# Letzte 100 Zeilen
-sudo journalctl -u network-monitor -n 100
-
-# Logs seit heute
-sudo journalctl -u network-monitor --since today
+docker compose logs -f
 ```
 
-### Service verwalten
+### Neustarten
 
 ```bash
-# Service stoppen
-sudo systemctl stop network-monitor
-
-# Service neustarten
-sudo systemctl restart network-monitor
-
-# Service deaktivieren
-sudo systemctl disable network-monitor
+docker compose restart
 ```
 
-### Konfiguration neu laden
-
-Nach Änderungen an der `config.yaml`:
+### Stoppen
 
 ```bash
-sudo systemctl restart network-monitor
-```
-
-### Service startet nicht
-
-```bash
-# Detaillierte Logs anzeigen
-sudo journalctl -u network-monitor -xe
-
-# Konfiguration manuell testen
-cd /opt/network-monitor
-sudo -u monitor venv/bin/python api.py
-```
-
-### Port anpassen
-
-Ändern Sie den Port in `config.yaml`:
-
-```yaml
-server:
-  port: 8080  # Oder ein anderer freier Port
+docker compose down
 ```
 
 ## Technische Details
 
 ### Architektur
 
+- **Container**: Docker (Python 3.11 Slim)
 - **Backend**: Python 3 mit FastAPI
 - **Frontend**: Vanilla JavaScript mit WebSocket
 - **Monitoring**: Asynchrone Checks mit asyncio
-- **Benachrichtigungen**: Microsoft Teams Adaptive Cards
-- **Deployment**: Systemd Service
+- **Status Persistence**: Docker Volumes
 
 ### Abhängigkeiten
 
