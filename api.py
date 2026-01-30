@@ -92,13 +92,16 @@ async def monitoring_loop():
                     # Gerät ist ausgefallen
                     if current_status == "down" and consecutive_failures >= failure_threshold:
                         # Prüfen ob Cooldown abgelaufen ist
+                        # Prüfen ob Cooldown abgelaufen ist
                         should_notify = True
                         if device.last_notification_time:
-                            time_since_last = (
-                                result["last_check"] - device.last_notification_time.isoformat()
-                            )
-                            # Vereinfachte Prüfung - in Produktion datetime-Objekte vergleichen
-                            should_notify = True  # Für erste Benachrichtigung immer senden
+                            # Zeit seit letzter Benachrichtigung berechnen
+                            # Wir nutzen device.last_check_time da dies ein datetime Objekt ist
+                            if device.last_check_time and device.last_notification_time:
+                                time_diff = (device.last_check_time - device.last_notification_time).total_seconds()
+                                if time_diff < notification_cooldown:
+                                    logger.info(f"Benachrichtigung für {device_name} unterdrückt (Cooldown aktiv: {int(time_diff)}s < {notification_cooldown}s)")
+                                    should_notify = False
                         
                         if should_notify:
                             # Fehlerdetails sammeln
