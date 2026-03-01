@@ -109,30 +109,44 @@ async def monitoring_loop():
                                 for c in failed_checks
                             ])
                             
-                            # Global Webhook prüfen
-                            webhook_url = config.get("teams_webhook_url", "")
+                            global_webhook_url = config.get("teams_webhook_url", "")
                             
-                            logger.info(f"Webhook URL konfiguriert: {'Ja' if webhook_url else 'Nein'}, Notifications Enabled für Device: {device.notifications_enabled}, Consecutive Failures: {consecutive_failures}, Threshold: {failure_threshold}")
+                            logger.info(f"Benachrichtigungs-Evaluation für {device_name}. Master Enabled: {device.notifications_enabled}, Global Toggle Set: {device.use_global_webhook}, Specific Webhook Set: {bool(device.webhook_url)}")
                             
-                            # Benachrichtigung nur wenn URL gesetzt UND für Gerät aktiviert
-                            if webhook_url and device.notifications_enabled:
-                                try:
-                                    logger.info(f"Versuche Benachrichtigung an {webhook_url[:30]}... zu senden")
-                                    # Notifier aktualisieren falls URL geändert
-                                    if teams_notifier.webhook_url != webhook_url:
-                                        teams_notifier.webhook_url = webhook_url
-                                        teams_notifier.enabled = True
-
-                                    await teams_notifier.send_device_down(
-                                        device_name=device_name,
-                                        check_type=failed_checks[0]["type"] if failed_checks else "unknown",
-                                        error=error_msg
-                                    )
+                            if device.notifications_enabled:
+                                # 1. Globale Benachrichtigung
+                                if global_webhook_url and device.use_global_webhook:
+                                    try:
+                                        logger.info(f"Sende DOWN-Benachrichtigung an globalen Webhook für {device_name}")
+                                        temp_notifier = TeamsNotifier(global_webhook_url)
+                                        await temp_notifier.send_device_down(
+                                            device_name=device_name,
+                                            check_type=failed_checks[0]["type"] if failed_checks else "unknown",
+                                            error=error_msg
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Fehler beim Senden der globalen Benachrichtigung: {e}")
+                                        
+                                # 2. Server-spezifische Benachrichtigung
+                                if device.webhook_url:
+                                    try:
+                                        logger.info(f"Sende DOWN-Benachrichtigung an spezifischen Webhook für {device_name}")
+                                        spec_notifier = TeamsNotifier(device.webhook_url)
+                                        await spec_notifier.send_device_down(
+                                            device_name=device_name,
+                                            check_type=failed_checks[0]["type"] if failed_checks else "unknown",
+                                            error=error_msg
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Fehler beim Senden der spezifischen Benachrichtigung: {e}")
+                                        
+                                # Timestamp aktualisieren, egal ob 1 oder beide gesendet wurden
+                                if (global_webhook_url and device.use_global_webhook) or device.webhook_url:
                                     device.last_notification_time = device.last_check_time
-                                except Exception as e:
-                                    logger.error(f"Fehler beim Senden der Benachrichtigung: {e}")
+                                else:
+                                    logger.info(f"Keine aktiven Webhooks für {device_name} (Global URL fehlt oder Haken nicht gesetzt, und spezifischer Webhook fehlt)")
                             else:
-                                logger.warning(f"Benachrichtigung NICHT gesendet. Webhook: {bool(webhook_url)}, Device Enabled: {device.notifications_enabled}")
+                                logger.info(f"Benachrichtigungen für {device_name} sind deaktiviert (Master Toggle).")
                     
                     # Gerät ist wieder online
                     elif current_status == "up" and previous_status == "down":
@@ -142,25 +156,35 @@ async def monitoring_loop():
                             if c["status"] == "up"
                         ]
                         
-                        # Global Webhook prüfen
-                        webhook_url = config.get("teams_webhook_url", "")
+                        global_webhook_url = config.get("teams_webhook_url", "")
                         
-                        # Benachrichtigung nur wenn URL gesetzt UND für Gerät aktiviert
-                        if webhook_url and device.notifications_enabled:
-                            try:
-                                # Notifier aktualisieren falls URL geändert
-                                if teams_notifier.webhook_url != webhook_url:
-                                    teams_notifier.webhook_url = webhook_url
-                                    teams_notifier.enabled = True
-
-                                await teams_notifier.send_device_up(
-                                    device_name=device_name,
-                                    check_type=successful_checks[0]["type"] if successful_checks else "unknown"
-                                )
-                            except Exception as e:
-                                logger.error(f"Fehler beim Senden der Benachrichtigung: {e}")
-                            
-                        device.last_notification_time = device.last_check_time
+                        if device.notifications_enabled:
+                            # 1. Globale Benachrichtigung
+                            if global_webhook_url and device.use_global_webhook:
+                                try:
+                                    logger.info(f"Sende UP-Benachrichtigung an globalen Webhook für {device_name}")
+                                    temp_notifier = TeamsNotifier(global_webhook_url)
+                                    await temp_notifier.send_device_up(
+                                        device_name=device_name,
+                                        check_type=successful_checks[0]["type"] if successful_checks else "unknown"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Fehler beim Senden der globalen Benachrichtigung: {e}")
+                                    
+                            # 2. Server-spezifische Benachrichtigung
+                            if device.webhook_url:
+                                try:
+                                    logger.info(f"Sende UP-Benachrichtigung an spezifischen Webhook für {device_name}")
+                                    spec_notifier = TeamsNotifier(device.webhook_url)
+                                    await spec_notifier.send_device_up(
+                                        device_name=device_name,
+                                        check_type=successful_checks[0]["type"] if successful_checks else "unknown"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Fehler beim Senden der spezifischen Benachrichtigung: {e}")
+                                    
+                            if (global_webhook_url and device.use_global_webhook) or device.webhook_url:
+                                device.last_notification_time = device.last_check_time
             
             # Status an alle verbundenen WebSocket-Clients senden
             if active_websockets:
@@ -254,7 +278,7 @@ async def get_device_status(device_name: str) -> Dict[str, Any]:
     """Gibt den Status eines spezifischen Geräts zurück"""
     status = monitoring_engine.get_device_status(device_name)
     if status is None:
-        return {"error": "Gerät nicht gefunden"}
+        return {"error": "Device not found"}
     return status
 
 
@@ -262,8 +286,10 @@ class AddDeviceRequest(BaseModel):
     name: str
     host: str
     ports: List[int]
-    webhook_url: Optional[str] = None # Deprecated, used as flag now
+    webhook_url: Optional[str] = None
+    use_global_webhook: bool = True
     notifications_enabled: bool = True
+    ping_enabled: bool = True
 
 
 @app.post("/api/devices")
@@ -273,17 +299,18 @@ async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
     
     # Prüfen ob Gerät bereits existiert
     if request.name in monitoring_engine.devices:
-        raise HTTPException(status_code=400, detail="Gerät existiert bereits")
+        raise HTTPException(status_code=400, detail="Device already exists")
     
     # Neue Checks erstellen
     checks = []
     
     # Ping Check
-    checks.append({
-        "type": "ping",
-        "target": request.host,
-        "tags": ["connection", "ping"]
-    })
+    if request.ping_enabled:
+        checks.append({
+            "type": "ping",
+            "target": request.host,
+            "tags": ["connection", "ping"]
+        })
     
     # Port Checks
     for port in request.ports:
@@ -299,7 +326,9 @@ async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
     new_device_config = {
         "name": request.name,
         "checks": checks,
-        "notifications_enabled": request.notifications_enabled
+        "notifications_enabled": request.notifications_enabled,
+        "webhook_url": request.webhook_url,
+        "use_global_webhook": request.use_global_webhook
     }
     
     # If the frontend sends webhook_url as a boolean flag (hacky but compatible with request model)
@@ -323,7 +352,9 @@ async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
             new_monitor = DeviceMonitor(
                 request.name, 
                 checks, 
-                new_device_config["notifications_enabled"]
+                new_device_config["notifications_enabled"],
+                new_device_config["webhook_url"],
+                new_device_config["use_global_webhook"]
             )
             monitoring_engine.devices[request.name] = new_monitor
             
@@ -331,7 +362,7 @@ async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
         
         return {
             "status": "success",
-            "message": f"Gerät {request.name} hinzugefügt",
+            "message": f"Device {request.name} added",
             "device": new_device_config
         }
         
@@ -345,6 +376,9 @@ class UpdateDeviceRequest(BaseModel):
     host: str
     ports: List[int]
     notifications_enabled: bool
+    use_global_webhook: bool = True
+    webhook_url: Optional[str] = None
+    ping_enabled: bool = True
 
 
 @app.put("/api/devices/{device_name}")
@@ -353,25 +387,26 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
     global config, monitoring_engine
     
     if device_name not in monitoring_engine.devices:
-        raise HTTPException(status_code=404, detail="Gerät nicht gefunden")
+        raise HTTPException(status_code=404, detail="Device not found")
     
     # Check rename conflict
     target_name = request.new_name if request.new_name else device_name
     if target_name != device_name and target_name in monitoring_engine.devices:
-        raise HTTPException(status_code=400, detail="Ein Gerät mit diesem Namen existiert bereits")
+        raise HTTPException(status_code=400, detail="A device with this name already exists")
     
     # Gerät in Config finden
     device_config = next((d for d in config.get("devices", []) if d["name"] == device_name), None)
     if not device_config:
-         raise HTTPException(status_code=500, detail="Inkonsistenter Zustand: Gerät in Runtime aber nicht in Config")
+         raise HTTPException(status_code=500, detail="Inconsistent state: device in runtime but not in config")
 
     # Checks neu erstellen
     checks = []
-    checks.append({
-        "type": "ping",
-        "target": request.host,
-        "tags": ["connection", "ping"]
-    })
+    if request.ping_enabled:
+        checks.append({
+            "type": "ping",
+            "target": request.host,
+            "tags": ["connection", "ping"]
+        })
     
     for port in request.ports:
         checks.append({
@@ -386,6 +421,8 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
     device_config["name"] = target_name
     device_config["checks"] = checks
     device_config["notifications_enabled"] = request.notifications_enabled
+    device_config["webhook_url"] = request.webhook_url
+    device_config["use_global_webhook"] = request.use_global_webhook
     
     try:
         save_config(config)
@@ -399,13 +436,14 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
         new_monitor = DeviceMonitor(
             target_name, 
             checks, 
-            request.notifications_enabled
+            request.notifications_enabled,
+            request.webhook_url
         )
         monitoring_engine.devices[target_name] = new_monitor
         
         logger.info(f"Gerät aktualisiert: {device_name} -> {target_name}")
         
-        return {"status": "success", "message": f"Gerät aktualisiert"}
+        return {"status": "success", "message": f"Device updated"}
         
     except Exception as e:
         logger.error(f"Fehler beim Aktualisieren des Geräts: {e}")
@@ -418,7 +456,7 @@ async def delete_device(device_name: str) -> Dict[str, Any]:
     global config, monitoring_engine
     
     if device_name not in monitoring_engine.devices:
-        raise HTTPException(status_code=404, detail="Gerät nicht gefunden")
+        raise HTTPException(status_code=404, detail="Device not found")
         
     # Aus Config entfernen
     config["devices"] = [d for d in config.get("devices", []) if d["name"] != device_name]
@@ -430,7 +468,7 @@ async def delete_device(device_name: str) -> Dict[str, Any]:
         del monitoring_engine.devices[device_name]
         
         logger.info(f"Gerät gelöscht: {device_name}")
-        return {"status": "success", "message": f"Gerät {device_name} gelöscht"}
+        return {"status": "success", "message": f"Device {device_name} deleted"}
         
     except Exception as e:
         logger.error(f"Fehler beim Löschen des Geräts: {e}")
@@ -463,7 +501,7 @@ async def save_settings(request: SettingsRequest) -> Dict[str, Any]:
         teams_notifier.webhook_url = request.teams_webhook_url
         teams_notifier.enabled = bool(request.teams_webhook_url)
         
-        return {"status": "success", "message": "Einstellungen gespeichert"}
+        return {"status": "success", "message": "Settings saved"}
     except Exception as e:
          raise HTTPException(status_code=500, detail=str(e))
 
@@ -476,9 +514,9 @@ async def test_webhook(request: SettingsRequest) -> Dict[str, Any]:
     success = await teams_notifier.send_test_notification(request.teams_webhook_url)
     
     if success:
-        return {"status": "success", "message": "Test-Nachricht gesendet"}
+        return {"status": "success", "message": "Test message sent"}
     else:
-        raise HTTPException(status_code=500, detail="Konnte Test-Nachricht nicht senden. Überprüfe die URL.")
+        raise HTTPException(status_code=500, detail="Could not send test message. Check the URL.")
 
 
 @app.get("/api/version")
@@ -558,7 +596,7 @@ async def run_troubleshooting(category_id: str) -> Dict[str, Any]:
     category = next((c for c in troubleshooting_config if c["id"] == category_id), None)
     
     if not category:
-        return {"error": "Kategorie nicht gefunden"}
+        return {"error": "Category not found"}
         
     check_tags = category.get("check_tags", [])
     logger.info(f"Starte Troubleshooting für {category_id} (Tags: {check_tags})")

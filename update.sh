@@ -2,7 +2,7 @@
 
 # PortChecker - Update Script
 
-echo "🔍 Suche nach Updates..."
+echo "🔍 Checking for updates..."
 
 # Fetch latest changes without merging
 git fetch origin
@@ -12,31 +12,31 @@ LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse @{u})
 
 if [ $LOCAL = $REMOTE ]; then
-    echo "✅ Bereits auf dem neuesten Stand. Keine Änderungen notwendig."
+    echo "✅ Already up to date. No changes necessary."
     exit 0
 fi
 
-echo "🔄 Update verfügbar! Starte Update-Prozess..."
+echo "🔄 Update available! Starting update process..."
 
 # Backup config
-echo "💾 Sichere Konfiguration..."
+echo "💾 Backing up configuration..."
 cp config.yaml config.yaml.bak
 
 # Update code
-echo "📥 Lade Änderungen herunter..."
+echo "📥 Downloading changes..."
 # Stash any local changes (conflicts prevention)
 git stash
 git pull
 
 # Merge/Restore config
 # Note: We prefer the user's local config over the incoming default one.
-echo "♻️ Stelle Konfiguration wieder her..."
+echo "♻️ Restoring configuration..."
 if [ -f config.yaml.bak ]; then
     mv config.yaml.bak config.yaml
 fi
 
 # Rebuild container
-echo "🏗️ Baue Container neu..."
+echo "🏗️ Rebuilding container..."
 docker compose down
 docker compose up -d --build
 docker image prune -f
@@ -48,5 +48,5 @@ else
     LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 fi
 
-echo "✅ Update erfolgreich abgeschlossen!"
-echo "Das Interface ist erreichbar unter: http://$LOCAL_IP:8000"
+echo "✅ Update completed successfully!"
+echo "The interface is available at: http://$LOCAL_IP:8000"

@@ -76,7 +76,7 @@ class TeamsNotifier:
                                 "type": "FactSet",
                                 "facts": [
                                     {
-                                        "title": "Gerät:",
+                                        "title": "Device:",
                                         "value": device_name
                                     },
                                     {
@@ -84,11 +84,11 @@ class TeamsNotifier:
                                         "value": status
                                     },
                                     {
-                                        "title": "Check-Typ:",
+                                        "title": "Check Type:",
                                         "value": check_type.upper()
                                     },
                                     {
-                                        "title": "Zeit:",
+                                        "title": "Time:",
                                         "value": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                     }
                                 ]
@@ -143,8 +143,8 @@ class TeamsNotifier:
             device_name=device_name,
             check_type=check_type,
             status="DOWN",
-            message=f"❌ {device_name} ist nicht erreichbar!",
-            details=f"Fehler: {error}"
+            message=f"❌ {device_name} is unreachable!",
+            details=f"Error: {error}"
         )
     
     async def send_device_up(self, device_name: str, check_type: str):
@@ -153,8 +153,8 @@ class TeamsNotifier:
             device_name=device_name,
             check_type=check_type,
             status="UP",
-            message=f"✅ {device_name} ist wieder erreichbar!",
-            details="Das Gerät antwortet wieder normal."
+            message=f"✅ {device_name} is reachable again!",
+            details="The device is responding normally again."
         )
 
     async def send_test_notification(self, webhook_url: Optional[str] = None) -> bool:
@@ -170,8 +170,8 @@ class TeamsNotifier:
                 device_name="Test-System",
                 check_type="SYSTEM",
                 status="WARNING",
-                message="🧪 Dies ist eine Test-Benachrichtigung",
-                details="Wenn du diese Nachricht siehst, funktioniert die Webhook-Integration!"
+                message="🧪 This is a test notification",
+                details="If you see this message, the webhook integration is working!"
             )
         finally:
             if webhook_url:

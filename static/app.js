@@ -1,24 +1,23 @@
 class PortCheckerApp {
     constructor() {
         // Load persistend view or default
-        this.currentView = localStorage.getItem('currentView') || 'troubleshoot-view';
-        this.troubleshootConfig = [];
+        this.currentView = localStorage.getItem('currentView') || 'status-view';
         this.isChecking = false;
 
         this.init();
     }
 
     async init() {
-        // Load troubleshooting options
-        await this.loadOptions();
         await this.loadVersion();
 
         // Setup Event Listeners
         this.setupEventListeners();
 
         // Restore view
+        if (this.currentView !== 'status-view' && this.currentView !== 'settings-view') {
+            this.currentView = 'status-view';
+        }
         this.switchView(this.currentView);
-
 
         // Initialize WebSocket for background status
         this.initWebSocket();
@@ -29,152 +28,40 @@ class PortCheckerApp {
             const res = await fetch('/api/version');
             const data = await res.json();
             const el = document.getElementById('app-version');
-            if (el) el.textContent = data.version || '?.?.?';
+            if (el) el.textContent = 'v' + (data.version || '?.?.?');
         } catch (e) {
             console.warn("Failed to load version", e);
         }
     }
 
-    async loadOptions() {
-        try {
-            const container = document.getElementById('troubleshoot-options');
-            const response = await fetch('/api/troubleshoot/options');
-            this.troubleshootConfig = await response.json();
-
-            container.innerHTML = '';
-
-            if (this.troubleshootConfig.length === 0) {
-                container.innerHTML = '<p class="text-secondary">Keine Hilfe-Optionen konfiguriert.</p>';
-                return;
-            }
-
-            this.troubleshootConfig.forEach(option => {
-                const card = document.createElement('div');
-                card.className = 'option-card';
-                card.innerHTML = `
-                    <div class="option-icon">${option.icon}</div>
-                    <div class="option-title">${option.title}</div>
-                    <div class="option-desc">${option.description}</div>
-                `;
-
-                card.addEventListener('click', () => this.runDiagnostics(option));
-                container.appendChild(card);
-            });
-
-        } catch (error) {
-            console.error('Failed to load options', error);
-        }
-    }
-
-    async runDiagnostics(option) {
-        this.showResultModal(true, option.title);
-        const contentDiv = document.getElementById('result-content');
-
-        contentDiv.innerHTML = `
-            <div class="scanning-animation">
-                <div class="scan-line"></div>
-                <p>Analysiere ${option.title}...</p>
-                <p class="text-secondary text-sm">Überprüfe ${option.check_tags.join(', ')}...</p>
-            </div>
-        `;
-
-        try {
-            const response = await fetch(`/api/troubleshoot/${option.id}`, { method: 'POST' });
-            const data = await response.json();
-
-            this.displayResults(data);
-
-        } catch (error) {
-            contentDiv.innerHTML = `
-                <div class="check-result-item error">
-                    <div class="check-icon-status">⚠️</div>
-                    <div class="check-info">
-                        <h4>Systemfehler</h4>
-                        <div class="check-message">Die Analyse konnte nicht durchgeführt werden.</div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    displayResults(data) {
-        const contentDiv = document.getElementById('result-content');
-        contentDiv.innerHTML = '';
-
-        let hasErrors = false;
-
-        // Flatten checks from all devices
-        const allChecks = [];
-        data.results.devices.forEach(device => {
-            if (device.checks) {
-                device.checks.forEach(check => {
-                    allChecks.push({
-                        device: device.name,
-                        ...check
-                    });
-                });
-            }
-        });
-
-        if (allChecks.length === 0) {
-            contentDiv.innerHTML = `
-                <div class="scanning-animation">
-                    <p>Keine relevanten Checks gefunden.</p>
-                </div>
-            `;
-            return;
-        }
-
-        const sortedChecks = allChecks.sort((a, b) => {
-            // Errors first
-            if (a.status === 'down' && b.status !== 'down') return -1;
-            if (a.status !== 'down' && b.status === 'down') return 1;
-            return 0;
-        });
-
-        sortedChecks.forEach(check => {
-            const isError = check.status === 'down';
-            if (isError) hasErrors = true;
-
-            const item = document.createElement('div');
-            item.className = `check-result-item ${isError ? 'error' : 'success'}`;
-
-            const icon = isError ? '❌' : '✅';
-            const statusMsg = isError ? check.error : check.details;
-
-            item.innerHTML = `
-                <div class="check-icon-status">${icon}</div>
-                <div class="check-info">
-                    <h4>${check.device}: ${check.type.toUpperCase()}</h4>
-                    <div class="check-message">${statusMsg}</div>
-                </div>
-            `;
-
-            contentDiv.appendChild(item);
-        });
-
-        // Summary Header
-        const summary = document.createElement('div');
-        summary.style.marginBottom = '1.5rem';
-        summary.style.textAlign = 'center';
-
-        if (hasErrors) {
-            summary.innerHTML = `<h3 style="color: var(--error-color)">Probleme gefunden</h3><p>Bitte überprüfen Sie die oben genannten Fehler.</p>`;
+    showSettingsModal(show) {
+        const modal = document.getElementById('settings-modal');
+        if (show) {
+            this.loadSettings();
+            modal.classList.add('active');
+            modal.classList.remove('hidden');
         } else {
-            summary.innerHTML = `<h3 style="color: var(--success-color)">Alles OK</h3><p>Das System scheint einwandfrei zu funktionieren.</p>`;
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
-
-        contentDiv.insertBefore(summary, contentDiv.firstChild);
     }
 
-    showResultModal(show, title = '') {
-        const modal = document.getElementById('diagnostic-result');
-        const overlay = document.createElement('div'); // Simple way to block clicks if needed
-
+    showAddServerModal(show) {
+        const modal = document.getElementById('add-server-modal');
         if (show) {
             modal.classList.add('active');
             modal.classList.remove('hidden');
-            if (title) document.getElementById('result-title').textContent = title;
+        } else {
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+    }
+
+    showEditServerModal(show) {
+        const modal = document.getElementById('edit-server-modal');
+        if (show) {
+            modal.classList.add('active');
+            modal.classList.remove('hidden');
         } else {
             modal.classList.remove('active');
             setTimeout(() => modal.classList.add('hidden'), 300);
@@ -207,23 +94,15 @@ class PortCheckerApp {
         };
 
         // Navigation
-        addListener('show-status-btn', 'click', () => this.switchView('status-view'));
-        addListener('back-to-home-btn', 'click', () => this.switchView('troubleshoot-view'));
-        addListener('show-add-server-btn', 'click', () => this.switchView('add-server-view'));
-        addListener('back-from-add-btn', 'click', () => this.switchView('status-view'));
-
-        addListener('show-settings-btn', 'click', () => {
-            this.loadSettings();
-            this.switchView('settings-view');
-        });
-        addListener('back-from-settings-btn', 'click', () => this.switchView('troubleshoot-view'));
-        addListener('back-from-settings-btn', 'click', () => this.switchView('troubleshoot-view'));
-        addListener('back-from-edit-btn', 'click', () => this.switchView('status-view'));
-
+        addListener('show-add-server-btn', 'click', () => this.showAddServerModal(true));
+        addListener('close-add-server-btn', 'click', () => this.showAddServerModal(false));
+        addListener('close-edit-server-btn', 'click', () => this.showEditServerModal(false));
         addListener('refresh-btn', 'click', () => this.handleManualRefresh());
 
-        // Modal
-        addListener('close-result', 'click', () => this.showResultModal(false));
+        // Modals
+        addListener('show-settings-btn', 'click', () => this.showSettingsModal(true));
+        addListener('close-settings-btn', 'click', () => this.showSettingsModal(false));
+
 
         // Forms
         const addServerForm = document.getElementById('add-server-form');
@@ -286,15 +165,15 @@ class PortCheckerApp {
             });
 
             if (response.ok) {
-                msgDiv.innerHTML = "✅ Einstellungen gespeichert";
+                msgDiv.innerHTML = "✅ Settings saved";
                 msgDiv.style.color = "var(--success-color)";
                 setTimeout(() => {
                     msgDiv.textContent = "";
                     btn.disabled = false;
-                    this.switchView('troubleshoot-view');
+                    this.showSettingsModal(false);
                 }, 1000);
             } else {
-                throw new Error("Fehler beim Speichern");
+                throw new Error("Error saving settings");
             }
         } catch (e) {
             msgDiv.style.color = "var(--error-color)";
@@ -308,13 +187,13 @@ class PortCheckerApp {
         const btn = document.getElementById('test-webhook-btn');
 
         if (!url) {
-            msgDiv.textContent = "Bitte eine Webhook URL eingeben vor dem Test.";
+            msgDiv.textContent = "Please enter a Webhook URL before testing.";
             msgDiv.style.color = "var(--warning-color)";
             return;
         }
 
         btn.disabled = true;
-        msgDiv.textContent = "Sende Test-Nachricht...";
+        msgDiv.textContent = "Sending test message...";
         msgDiv.style.color = "var(--text-secondary)";
 
         try {
@@ -329,10 +208,10 @@ class PortCheckerApp {
                 msgDiv.innerHTML = "✅ " + res.message;
                 msgDiv.style.color = "var(--success-color)";
             } else {
-                throw new Error(res.detail || "Fehler beim Senden");
+                throw new Error(res.detail || "Error sending message");
             }
         } catch (e) {
-            msgDiv.textContent = "Fehler: " + e.message;
+            msgDiv.textContent = "Error: " + e.message;
             msgDiv.style.color = "var(--error-color)";
         } finally {
             btn.disabled = false;
@@ -368,9 +247,12 @@ class PortCheckerApp {
         document.getElementById('edit-server-name').value = device.name;
         document.getElementById('edit-server-host').value = host;
         document.getElementById('edit-server-ports').value = ports;
+        document.getElementById('edit-ping-enabled').checked = !!pingCheck;
         document.getElementById('edit-notifications-enabled').checked = device.notifications_enabled !== false;
+        document.getElementById('edit-global-notifications-enabled').checked = device.use_global_webhook !== false;
+        document.getElementById('edit-server-webhook').value = device.webhook_url || '';
 
-        this.switchView('edit-server-view');
+        this.showEditServerModal(true);
     }
 
     async handleUpdateServer(e) {
@@ -383,20 +265,23 @@ class PortCheckerApp {
         const newName = document.getElementById('edit-server-name').value;
         const host = document.getElementById('edit-server-host').value;
         const portsStr = document.getElementById('edit-server-ports').value;
+        const pingEnabled = document.getElementById('edit-ping-enabled').checked;
         const notificationsEnabled = document.getElementById('edit-notifications-enabled').checked;
+        const globalNotificationsEnabled = document.getElementById('edit-global-notifications-enabled').checked;
+        const webhookUrl = document.getElementById('edit-server-webhook').value;
 
         const ports = portsStr.split(',')
             .map(p => parseInt(p.trim()))
             .filter(p => !isNaN(p));
 
         if (ports.length === 0) {
-            msgDiv.textContent = "Bitte mindestens einen gültigen Port angeben.";
+            msgDiv.textContent = "Please specify at least one valid port.";
             msgDiv.style.color = "var(--error-color)";
             return;
         }
 
         btn.disabled = true;
-        msgDiv.textContent = "Speichere...";
+        msgDiv.textContent = "Saving...";
 
         try {
             const response = await fetch(`/api/devices/${encodeURIComponent(originalName)}`, {
@@ -406,12 +291,15 @@ class PortCheckerApp {
                     new_name: newName,
                     host,
                     ports,
-                    notifications_enabled: notificationsEnabled
+                    ping_enabled: pingEnabled,
+                    notifications_enabled: notificationsEnabled,
+                    use_global_webhook: globalNotificationsEnabled,
+                    webhook_url: webhookUrl ? webhookUrl : null
                 })
             });
 
             if (response.ok) {
-                msgDiv.innerHTML = "✅ Server aktualisiert!";
+                msgDiv.innerHTML = "✅ Server updated!";
                 msgDiv.style.color = "var(--success-color)";
 
                 // Immediate refresh of local data
@@ -425,16 +313,16 @@ class PortCheckerApp {
                 setTimeout(() => {
                     msgDiv.textContent = "";
                     btn.disabled = false;
-                    this.switchView('status-view');
+                    this.showEditServerModal(false);
                 }, 1000);
             } else {
                 const res = await response.json();
-                msgDiv.textContent = `Fehler: ${res.detail}`;
+                msgDiv.textContent = `Error: ${res.detail}`;
                 msgDiv.style.color = "var(--error-color)";
                 btn.disabled = false;
             }
         } catch (e) {
-            msgDiv.textContent = "Verbindungsfehler.";
+            msgDiv.textContent = "Connection error.";
             msgDiv.style.color = "var(--error-color)";
             btn.disabled = false;
         }
@@ -442,10 +330,10 @@ class PortCheckerApp {
 
     async handleDeleteServer() {
         const name = document.getElementById('edit-original-name').value;
-        if (!confirm(`Möchten Sie den Server "${name}" wirklich löschen?`)) return;
+        if (!confirm(`Do you really want to delete the server "${name}"?`)) return;
 
         const msgDiv = document.getElementById('edit-server-message');
-        msgDiv.textContent = "Lösche...";
+        msgDiv.textContent = "Deleting...";
 
         try {
             const response = await fetch(`/api/devices/${encodeURIComponent(name)}`, {
@@ -453,29 +341,29 @@ class PortCheckerApp {
             });
 
             if (response.ok) {
-                msgDiv.innerHTML = "✅ Server gelöscht!";
+                msgDiv.innerHTML = "✅ Server deleted!";
                 msgDiv.style.color = "var(--success-color)";
 
                 // Immediate refresh of local data
                 try {
                     const statusRes = await fetch('/api/status');
-                    const statusData = await statusRes.json();
+                    const statusData = await res.json();
                     this.devicesData = statusData.devices;
                     this.updateStats();
                 } catch (e) { console.warn("Background refresh failed", e); }
 
                 setTimeout(() => {
                     msgDiv.textContent = "";
-                    this.switchView('status-view');
+                    this.showEditServerModal(false);
                 }, 1000);
             } else {
                 const res = await response.json();
-                msgDiv.textContent = `Fehler: ${res.detail}`;
+                msgDiv.textContent = `Error: ${res.detail}`;
                 msgDiv.style.color = "var(--error-color)";
             }
         } catch (e) {
             console.error(e);
-            msgDiv.textContent = "Verbindungsfehler.";
+            msgDiv.textContent = "Connection error.";
             msgDiv.style.color = "var(--error-color)";
         }
     }
@@ -491,12 +379,10 @@ class PortCheckerApp {
         const name = form.querySelector('#server-name').value;
         const host = form.querySelector('#server-host').value;
         const portsStr = form.querySelector('#server-ports').value;
+        const pingEnabled = form.querySelector('#ping-enabled').checked;
         const notificationsEnabled = form.querySelector('#notifications-enabled').checked;
-        // Old logic used webhookUrl, now we just pass boolean logic via params or updated logic
-        // But backend expects AddDeviceRequest. We can hijack webhook_url param or just rely on backend defaulting.
-        // Wait, I updated backend to accept notifications_enabled but AddDeviceRequest still has webhook_url.
-        // Actually I added notifications_enabled to AddDeviceRequest.
-        // So I should send it.
+        const globalNotificationsEnabled = form.querySelector('#global-notifications-enabled').checked;
+        const webhookUrl = form.querySelector('#server-webhook').value;
 
         // specific parsing
         const ports = portsStr.split(',')
@@ -504,13 +390,13 @@ class PortCheckerApp {
             .filter(p => !isNaN(p));
 
         if (ports.length === 0) {
-            msgDiv.textContent = "Bitte mindestens einen gültigen Port angeben.";
+            msgDiv.textContent = "Please specify at least one valid port.";
             msgDiv.style.color = "var(--error-color)";
             return;
         }
 
         submitBtn.disabled = true;
-        msgDiv.textContent = "Server wird hinzugefügt...";
+        msgDiv.textContent = "Adding server...";
         msgDiv.style.color = "var(--text-secondary)";
 
         try {
@@ -523,15 +409,17 @@ class PortCheckerApp {
                     name,
                     host,
                     ports,
-                    webhook_url: null, // Deprecated in frontend
-                    notifications_enabled: notificationsEnabled
+                    webhook_url: webhookUrl ? webhookUrl : null,
+                    use_global_webhook: globalNotificationsEnabled,
+                    notifications_enabled: notificationsEnabled,
+                    ping_enabled: pingEnabled
                 })
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                msgDiv.innerHTML = `✅ Server erfolgreich hinzugefügt!`;
+                msgDiv.innerHTML = `✅ Server successfully added!`;
                 msgDiv.style.color = "var(--success-color)";
                 form.reset();
 
@@ -547,16 +435,16 @@ class PortCheckerApp {
                 setTimeout(() => {
                     msgDiv.textContent = "";
                     submitBtn.disabled = false;
-                    this.switchView('status-view');
+                    this.showAddServerModal(false);
                 }, 1500);
             } else {
-                msgDiv.textContent = `Fehler: ${result.detail || "Unbekannter Fehler"}`;
+                msgDiv.textContent = `Error: ${result.detail || "Unknown error"}`;
                 msgDiv.style.color = "var(--error-color)";
                 submitBtn.disabled = false;
             }
         } catch (error) {
             console.error(error);
-            msgDiv.textContent = "Verbindungsfehler beim Hinzufügen.";
+            msgDiv.textContent = "Connection error while adding.";
             msgDiv.style.color = "var(--error-color)";
             submitBtn.disabled = false;
         }
@@ -636,7 +524,7 @@ class PortCheckerApp {
                         <span class="loading-indicator"></span>
                         ${statusIcon} ${device.name}
                     </h3>
-                    <button class="icon-btn edit-device-btn" data-name="${device.name}" title="Bearbeiten" style="font-size:1.2rem;">✏️</button>
+                    <button class="icon-btn edit-device-btn" data-name="${device.name}" title="Edit" style="font-size:1.2rem;">⚙️</button>
                 </div>
                 <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                     ${device.checks.map(c =>

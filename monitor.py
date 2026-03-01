@@ -451,10 +451,12 @@ class RAVENNAServiceCheck(BaseCheck):
 class DeviceMonitor:
     """Überwacht ein einzelnes Gerät mit mehreren Checks"""
     
-    def __init__(self, name: str, checks_config: List[Dict[str, Any]], notifications_enabled: bool = True):
+    def __init__(self, name: str, checks_config: List[Dict[str, Any]], notifications_enabled: bool = True, webhook_url: Optional[str] = None, use_global_webhook: bool = True):
         self.name = name
         self.checks = self._create_checks(checks_config)
         self.notifications_enabled = notifications_enabled
+        self.webhook_url = webhook_url
+        self.use_global_webhook = use_global_webhook
         self.status = CheckStatus.UNKNOWN
         self.last_check_time: Optional[datetime] = None
         self.consecutive_failures = 0
@@ -596,6 +598,8 @@ class DeviceMonitor:
             "consecutive_failures": self.consecutive_failures,
             "last_check": self.last_check_time.isoformat() if self.last_check_time else None,
             "notifications_enabled": self.notifications_enabled,
+            "use_global_webhook": self.use_global_webhook,
+            "webhook_url": self.webhook_url,
             "checks": results
         }
         
@@ -608,6 +612,8 @@ class DeviceMonitor:
             "consecutive_failures": self.consecutive_failures,
             "last_check": self.last_check_time.isoformat() if self.last_check_time else None,
             "notifications_enabled": self.notifications_enabled,
+            "use_global_webhook": self.use_global_webhook,
+            "webhook_url": self.webhook_url,
             "checks": self.last_check_results
         }
 
@@ -622,13 +628,23 @@ class MonitoringEngine:
             name = device_config.get("name")
             checks = device_config.get("checks", [])
             
-            # Backwards compatibility: check for old webhook_url or new notifications_enabled
-            notifications_enabled = device_config.get("notifications_enabled", True)
-            if "webhook_url" in device_config and device_config["webhook_url"]:
-                notifications_enabled = True
-            
             if name and checks:
-                self.devices[name] = DeviceMonitor(name, checks, notifications_enabled)
+                try:
+                    # Get device specific notifications setting (default True)
+                    notifications_enabled = device_config.get("notifications_enabled", True)
+                    webhook_url = device_config.get("webhook_url", None)
+                    use_global_webhook = device_config.get("use_global_webhook", True)
+                    
+                    device_monitor = DeviceMonitor(
+                        name=device_config["name"],
+                        checks_config=device_config.get("checks", []),
+                        notifications_enabled=notifications_enabled,
+                        webhook_url=webhook_url,
+                        use_global_webhook=use_global_webhook
+                    )
+                    self.devices[device_monitor.name] = device_monitor
+                except Exception as e:
+                    logger.error(f"Fehler beim Initialisieren des Geräts '{name}': {e}")
             else:
                 logger.warning(f"Ungültige Gerätekonfiguration: {device_config}")
         

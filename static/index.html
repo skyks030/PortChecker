@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -13,55 +13,50 @@
 
 <body>
     <div class="app-container">
-        <!-- Troubleshooting Mode (Default) -->
-        <main id="troubleshoot-view" class="view active">
-            <header class="main-header">
-                <div class="logo-area">
-                    <div class="logo-icon">🆘</div>
-                    <h1>PortChecker</h1>
-                </div>
-                <p class="subtitle">Wie kann ich dir helfen?</p>
-            </header>
-
-            <div class="troubleshoot-grid" id="troubleshoot-options">
-                <!-- Options will be injected here -->
-                <div class="loading-spinner"></div>
-            </div>
-
-            <div id="diagnostic-result" class="diagnostic-result hidden">
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal-overlay hidden">
+            <div class="modal-content">
                 <div class="result-header">
-                    <h2 id="result-title">Analyse läuft...</h2>
-                    <button class="close-btn" id="close-result">×</button>
+                    <h2>Global Notification</h2>
+                    <button class="close-btn" id="close-settings-btn">×</button>
                 </div>
-                <div class="result-content" id="result-content">
-                    <div class="scanning-animation">
-                        <div class="scan-line"></div>
-                        <p>Überprüfe Systeme...</p>
-                    </div>
+                <div class="result-content" style="padding: 1.5rem;">
+                    <form id="settings-form">
+                        <div class="form-group">
+                            <label for="settings-webhook">Global Teams Webhook URL</label>
+                            <input type="url" id="settings-webhook" name="webhook-url"
+                                placeholder="https://outlook.office.com/webhook/...">
+                            <small>Used as fallback or general webhook</small>
+                        </div>
+                        <div class="button-group" style="display: flex; gap: 10px;">
+                            <button type="button" id="test-webhook-btn" class="secondary-btn">Test Message</button>
+                            <button type="submit" class="primary-btn">Save</button>
+                        </div>
+                        <div id="settings-message" style="margin-top: 1rem;"></div>
+                    </form>
                 </div>
             </div>
-
-            <footer class="main-footer">
-                <button id="show-status-btn" class="secondary-btn">System Status</button>
-                <div class="footer-actions">
-                    <button id="show-settings-btn" class="icon-btn" title="Einstellungen">⚙️</button>
-                    <button id="show-add-server-btn" class="secondary-btn" style="margin-left: 10px;">+ Server</button>
-                </div>
-            </footer>
-        </main>
+        </div>
 
         <!-- Classic Status Mode -->
-        <main id="status-view" class="view">
+        <main id="status-view" class="view active">
             <header class="status-header">
-                <button id="back-to-home-btn" class="icon-btn">← Zurück</button>
-                <h1>System Status</h1>
-                <button id="refresh-btn" class="icon-btn" title="Aktualisieren" style="font-size: 1.5rem;">🔄</button>
+                <div class="header-left">
+                    <h1>Portchecker <span id="app-version"
+                            style="font-size: 1rem; color: var(--text-secondary); font-weight: normal;">v...</span></h1>
+                </div>
+                <div class="header-right" style="display: flex; gap: 15px; align-items: center;">
+                    <button id="show-settings-btn" class="secondary-btn" title="Global Notification">Global
+                        Notification</button>
+                    <button id="show-add-server-btn" class="primary-btn">+ Server</button>
+                    <button id="refresh-btn" class="secondary-btn" title="Refresh">Reload Servers</button>
+                </div>
             </header>
 
             <div class="dashboard-stats">
                 <div class="stat-card">
                     <span class="stat-value" id="total-devices">-</span>
-                    <span class="stat-label">Geräte</span>
+                    <span class="stat-label">Devices</span>
                 </div>
                 <!-- ... existing stats ... -->
                 <div class="stat-card up">
@@ -79,121 +74,161 @@
             </div>
         </main>
 
-        <!-- Add Server Mode -->
-        <main id="add-server-view" class="view">
-            <header class="status-header">
-                <button id="back-from-add-btn" class="icon-btn">← Zurück</button>
-                <h1>Server hinzufügen</h1>
-            </header>
+        <!-- Add Server Modal -->
+        <div id="add-server-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="result-header">
+                    <h2>Add Server</h2>
+                    <button class="close-btn" id="close-add-server-btn">×</button>
+                </div>
+                <div class="result-content" style="padding: 1.5rem;">
+                    <form id="add-server-form">
+                        <div class="form-group">
+                            <label for="server-name">Server Name</label>
+                            <input type="text" id="server-name" name="server-name" placeholder="e.g. Render-Node 01"
+                                required>
+                        </div>
 
-            <div class="form-container">
-                <form id="add-server-form">
-                    <div class="form-group">
-                        <label for="server-name">Name des Servers</label>
-                        <input type="text" id="server-name" name="server-name" placeholder="z.B. Render-Node 01"
-                            required>
-                    </div>
+                        <div class="form-group">
+                            <label for="server-host">IP Address or Hostname</label>
+                            <input type="text" id="server-host" name="server-host" placeholder="e.g. 192.168.1.50"
+                                required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="server-host">IP-Adresse oder Hostname</label>
-                        <input type="text" id="server-host" name="server-host" placeholder="z.B. 192.168.1.50" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="server-ports">TCP/UDP Ports</label>
+                            <input type="text" id="server-ports" name="server-ports" placeholder="e.g. 80, 443, 8080"
+                                required>
+                            <small>These ports will be checked for accessibility. Multiple ports can be separated by
+                                commas.</small>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="server-ports">Ports (kommagetrennt)</label>
-                        <input type="text" id="server-ports" name="server-ports" placeholder="z.B. 80, 443, 8080"
-                            required>
-                        <small>Diese Ports werden auf Erreichbarkeit geprüft</small>
-                    </div>
+                        <div class="form-section">
+                            <h3 style="margin-bottom: 1rem; margin-top: 1.5rem; color: var(--accent-color);">
+                                Notifications</h3>
 
-                    <div class="form-group checkbox-group">
-                        <label class="checkbox-container">
-                            Benachrichtigungen aktivieren
-                            <input type="checkbox" id="notifications-enabled" name="notifications-enabled" checked>
-                            <span class="checkmark"></span>
-                        </label>
-                        <small>Sendet Nachrichten an den globalen Teams Webhook</small>
-                    </div>
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Enable Ping (ICMP) Check
+                                    <input type="checkbox" id="ping-enabled" name="ping-enabled" checked>
+                                    <span class="checkmark"></span>
+                                </label>
+                                <small>Checks basic reachability of the server via Ping.</small>
+                            </div>
 
-                    <button type="submit" class="primary-btn">Server hinzufügen</button>
-                    <div id="add-server-message" style="margin-top: 1rem;"></div>
-                </form>
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Enable Notifications
+                                    <input type="checkbox" id="notifications-enabled" name="notifications-enabled"
+                                        checked>
+                                    <span class="checkmark"></span>
+                                </label>
+                                <small>Sends messages to the global Teams Webhook</small>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Send to Global Webhook
+                                    <input type="checkbox" id="global-notifications-enabled"
+                                        name="global-notifications-enabled" checked>
+                                    <span class="checkmark"></span>
+                                </label>
+                                <small>Sends messages to the channel configured in Settings</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="server-webhook">Additional Server-Specific Webhook URL (Optional)</label>
+                                <input type="url" id="server-webhook" name="server-webhook"
+                                    placeholder="https://outlook.office.com/webhook/...">
+                                <small>Sends additional messages to this specific channel</small>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="primary-btn">Add Server</button>
+                        <div id="add-server-message" style="margin-top: 1rem;"></div>
+                    </form>
+                </div>
             </div>
-        </main>
+        </div>
 
-        <!-- Edit Server Mode -->
-        <main id="edit-server-view" class="view">
-            <header class="status-header">
-                <button id="back-from-edit-btn" class="icon-btn">← Zurück</button>
-                <h1>Server bearbeiten</h1>
-            </header>
+        <!-- Edit Server Modal -->
+        <div id="edit-server-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="result-header">
+                    <h2>Edit Server</h2>
+                    <button class="close-btn" id="close-edit-server-btn">×</button>
+                </div>
+                <div class="result-content" style="padding: 1.5rem;">
+                    <form id="edit-server-form">
+                        <input type="hidden" id="edit-original-name">
 
-            <div class="form-container">
-                <form id="edit-server-form">
-                    <input type="hidden" id="edit-original-name">
+                        <div class="form-group">
+                            <label for="edit-server-name">Server Name</label>
+                            <input type="text" id="edit-server-name" name="server-name" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit-server-name">Name des Servers</label>
-                        <input type="text" id="edit-server-name" name="server-name" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="edit-server-host">IP Address or Hostname</label>
+                            <input type="text" id="edit-server-host" name="server-host" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit-server-host">IP-Adresse oder Hostname</label>
-                        <input type="text" id="edit-server-host" name="server-host" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="edit-server-ports">TCP/UDP Ports</label>
+                            <input type="text" id="edit-server-ports" name="server-ports" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit-server-ports">Ports (kommagetrennt)</label>
-                        <input type="text" id="edit-server-ports" name="server-ports" required>
-                    </div>
+                        <div class="form-section">
+                            <h3 style="margin-bottom: 1rem; margin-top: 1.5rem; color: var(--accent-color);">
+                                Notifications</h3>
 
-                    <div class="form-group checkbox-group">
-                        <label class="checkbox-container">
-                            Benachrichtigungen aktivieren
-                            <input type="checkbox" id="edit-notifications-enabled" name="notifications-enabled">
-                            <span class="checkmark"></span>
-                        </label>
-                    </div>
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Enable Ping (ICMP) Check
+                                    <input type="checkbox" id="edit-ping-enabled" name="ping-enabled" checked>
+                                    <span class="checkmark"></span>
+                                </label>
+                            </div>
 
-                    <div class="button-group" style="display: flex; gap: 10px;">
-                        <button type="button" id="delete-server-btn" class="secondary-btn"
-                            style="border-color: var(--error-color); color: var(--error-color);">Löschen</button>
-                        <button type="submit" class="primary-btn">Änderungen speichern</button>
-                    </div>
-                    <div id="edit-server-message" style="margin-top: 1rem;"></div>
-                </form>
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Enable notifications for this server
+                                    <input type="checkbox" id="edit-notifications-enabled" name="notifications-enabled">
+                                    <span class="checkmark"></span>
+                                </label>
+                                <small>Main switch: Allows sending error messages for this server</small>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label class="checkbox-container">
+                                    Send to Global Webhook
+                                    <input type="checkbox" id="edit-global-notifications-enabled"
+                                        name="global-notifications-enabled">
+                                    <span class="checkmark"></span>
+                                </label>
+                                <small>Sends messages to the channel configured in Settings</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="edit-server-webhook">Additional Server-Specific Webhook URL
+                                    (Optional)</label>
+                                <input type="url" id="edit-server-webhook" name="server-webhook"
+                                    placeholder="https://outlook.office.com/webhook/...">
+                                <small>Sends additional messages to this specific channel</small>
+                            </div>
+                        </div>
+
+                        <div class="button-group" style="display: flex; gap: 10px;">
+                            <button type="button" id="delete-server-btn" class="secondary-btn"
+                                style="border-color: var(--error-color); color: var(--error-color);">Delete</button>
+                            <button type="submit" class="primary-btn">Save Changes</button>
+                        </div>
+                        <div id="edit-server-message" style="margin-top: 1rem;"></div>
+                    </form>
+                </div>
             </div>
-        </main>
+        </div>
 
-        <!-- Settings Mode -->
-        <main id="settings-view" class="view">
-            <header class="status-header">
-                <button id="back-from-settings-btn" class="icon-btn">← Zurück</button>
-                <h1>Einstellungen</h1>
-            </header>
-
-            <div class="form-container">
-                <form id="settings-form">
-                    <div class="form-group">
-                        <label for="settings-webhook">Globaler Teams Webhook URL</label>
-                        <input type="url" id="settings-webhook" name="webhook-url"
-                            placeholder="https://outlook.office.com/webhook/...">
-                        <small>Wird für alle Benachrichtigungen verwendet</small>
-                    </div>
-
-                    <div class="button-group" style="display: flex; gap: 10px;">
-                        <button type="button" id="test-webhook-btn" class="secondary-btn">Test Nachricht senden</button>
-                        <button type="submit" class="primary-btn">Speichern</button>
-                    </div>
-                    <div id="settings-message" style="margin-top: 1rem;"></div>
-                </form>
-            </div>
-        </main>
     </div>
-
-    <footer class="app-footer">
-        v<span id="app-version">...</span>
-    </footer>
 
     <script src="/static/app.js"></script>
 </body>

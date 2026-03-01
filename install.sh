@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # PortChecker - Installation Script
-# Ausführen mit: chmod +x install.sh && ./install.sh
+# Run with: chmod +x install.sh && ./install.sh
 
-echo "🔧 Starte Installation von PortChecker..."
+echo "🔧 Starting installation of PortChecker..."
 
 # Check requirements
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker wurde nicht gefunden. Bitte installiere Docker und Docker Compose zuerst."
+    echo "❌ Docker was not found. Please install Docker and Docker Compose first."
     exit 1
 fi
 
@@ -15,7 +15,7 @@ fi
 chmod +x update.sh
 
 # Stop and remove existing container if it exists (to avoid name conflicts)
-echo "🧹 Bereinige alte Installationen..."
+echo "🧹 Cleaning up old installations..."
 docker stop portchecker 2>/dev/null || true
 docker rm portchecker 2>/dev/null || true
 # Also clean up old name if present
@@ -23,12 +23,12 @@ docker stop studio-hilfe 2>/dev/null || true
 docker rm studio-hilfe 2>/dev/null || true
 
 # Build and start container
-echo "🚀 Baue und starte Container..."
+echo "🚀 Building and starting container..."
 docker compose up -d --build
 
 # Show status
 if [ $? -eq 0 ]; then
-    echo "✅ Installation erfolgreich!"
+    echo "✅ Installation successful!"
     
     # Get local IP
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -38,12 +38,12 @@ if [ $? -eq 0 ]; then
     fi
     
     echo ""
-    echo "Das Interface ist erreichbar unter:"
+    echo "The interface is available at:"
     echo "👉 http://$LOCAL_IP:8000"
     echo ""
-    echo "Zum Aktualisieren später einfach ./update.sh ausführen."
+    echo "To update later, simply run ./update.sh."
 else
-    echo "❌ Fehler bei der Installation."
-    echo "Bitte stelle sicher, dass der Docker-Daemon läuft und du Berechtigung hast."
+    echo "❌ Installation failed."
+    echo "Please ensure the Docker daemon is running and you have sufficient permissions."
     exit 1
 fi
