@@ -7,6 +7,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any, Optional
+import os
 
 import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -29,25 +30,68 @@ logger = logging.getLogger(__name__)
 monitoring_engine: MonitoringEngine = None
 teams_notifier: TeamsNotifier = None
 config: Dict[str, Any] = {}
+userdata: Dict[str, Any] = {}
 active_websockets: List[WebSocket] = []
 
 
 def load_config() -> Dict[str, Any]:
-    """Lädt die Konfiguration aus config.yaml"""
+    """Lädt die Basis-Konfiguration aus config.yaml"""
     try:
         with open("config.yaml", "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f) or {}
     except Exception as e:
         logger.error(f"Fehler beim Laden der Konfiguration: {e}")
-        raise
+        return {}
+
+def load_userdata() -> Dict[str, Any]:
+    """Lädt die Benutzerdaten aus data/userdata.yaml oder migriert von config.yaml"""
+    global config
+    userdata_path = "data/userdata.yaml"
+    
+    # Sicherstellen, dass der Ordner existiert
+    os.makedirs("data", exist_ok=True)
+    
+    data = {}
+    if os.path.exists(userdata_path):
+        try:
+            with open(userdata_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+                # Wenn wir userdata haben, brauchen wir nur sicherstellen, dass die keys existieren
+                if "devices" not in data:
+                    data["devices"] = []
+                if "teams_webhook_url" not in data:
+                    data["teams_webhook_url"] = ""
+        except Exception as e:
+            logger.error(f"Fehler beim Laden der Userdata: {e}")
+    else:
+        # Migration from old config
+        logger.info("Migriere Benutzerdaten aus config.yaml nach data/userdata.yaml...")
+        data["devices"] = config.pop("devices", [])
+        data["teams_webhook_url"] = config.pop("teams_webhook_url", "")
+        
+        # Save new userdata and update config.yaml
+        save_userdata(data)
+        save_config(config)
+        
+    return data
 
 def save_config(new_config: Dict[str, Any]):
-    """Speichert die Konfiguration in config.yaml"""
+    """Speichert die Basis-Konfiguration in config.yaml"""
     try:
         with open("config.yaml", "w", encoding="utf-8") as f:
             yaml.dump(new_config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Konfiguration: {e}")
+        raise
+
+def save_userdata(new_data: Dict[str, Any]):
+    """Speichert die Benutzerdaten in data/userdata.yaml"""
+    os.makedirs("data", exist_ok=True)
+    try:
+        with open("data/userdata.yaml", "w", encoding="utf-8") as f:
+            yaml.dump(new_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    except Exception as e:
+        logger.error(f"Fehler beim Speichern der Userdata: {e}")
         raise
 
 async def monitoring_loop():
@@ -109,7 +153,7 @@ async def monitoring_loop():
                                 for c in failed_checks
                             ])
                             
-                            global_webhook_url = config.get("teams_webhook_url", "")
+                            global_webhook_url = userdata.get("teams_webhook_url", "")
                             
                             logger.info(f"Benachrichtigungs-Evaluation für {device_name}. Master Enabled: {device.notifications_enabled}, Global Toggle Set: {device.use_global_webhook}, Specific Webhook Set: {bool(device.webhook_url)}")
                             
@@ -156,7 +200,7 @@ async def monitoring_loop():
                             if c["status"] == "up"
                         ]
                         
-                        global_webhook_url = config.get("teams_webhook_url", "")
+                        global_webhook_url = userdata.get("teams_webhook_url", "")
                         
                         if device.notifications_enabled:
                             # 1. Globale Benachrichtigung
@@ -216,20 +260,21 @@ async def monitoring_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle Management - startet/stoppt Background Tasks"""
-    global monitoring_engine, teams_notifier, config
+    global monitoring_engine, teams_notifier, config, userdata
     
     # Startup
     logger.info("Server wird gestartet...")
     
     # Konfiguration laden
     config = load_config()
+    userdata = load_userdata()
     
     # Monitoring Engine initialisieren
-    devices_config = config.get("devices", [])
+    devices_config = userdata.get("devices", [])
     monitoring_engine = MonitoringEngine(devices_config)
     
     # Teams Notifier initialisieren
-    webhook_url = config.get("teams_webhook_url", "")
+    webhook_url = userdata.get("teams_webhook_url", "")
     teams_notifier = TeamsNotifier(webhook_url)
     
     # Monitoring Loop als Background Task starten
@@ -295,7 +340,7 @@ class AddDeviceRequest(BaseModel):
 @app.post("/api/devices")
 async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
     """Fügt ein neues Gerät zur Überwachung hinzu"""
-    global config, monitoring_engine
+    global monitoring_engine, userdata
     
     # Prüfen ob Gerät bereits existiert
     if request.name in monitoring_engine.devices:
@@ -336,14 +381,14 @@ async def add_device(request: AddDeviceRequest) -> Dict[str, Any]:
     # Actually, let's update AddDeviceRequest to have notifications_enabled
     
     # Zu Config hinzufügen
-    if "devices" not in config:
-        config["devices"] = []
+    if "devices" not in userdata:
+        userdata["devices"] = []
         
-    config["devices"].append(new_device_config)
+    userdata["devices"].append(new_device_config)
     
     try:
         # Config speichern
-        save_config(config)
+        save_userdata(userdata)
         
         # Monitoring Engine aktualisieren
         device_monitor = monitoring_engine.devices.get(request.name)
@@ -384,7 +429,7 @@ class UpdateDeviceRequest(BaseModel):
 @app.put("/api/devices/{device_name}")
 async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[str, Any]:
     """Aktualisiert ein bestehendes Gerät"""
-    global config, monitoring_engine
+    global monitoring_engine, userdata
     
     if device_name not in monitoring_engine.devices:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -395,9 +440,9 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
         raise HTTPException(status_code=400, detail="A device with this name already exists")
     
     # Gerät in Config finden
-    device_config = next((d for d in config.get("devices", []) if d["name"] == device_name), None)
+    device_config = next((d for d in userdata.get("devices", []) if d["name"] == device_name), None)
     if not device_config:
-         raise HTTPException(status_code=500, detail="Inconsistent state: device in runtime but not in config")
+         raise HTTPException(status_code=500, detail="Inconsistent state: device in runtime but not in userdata")
 
     # Checks neu erstellen
     checks = []
@@ -425,7 +470,7 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
     device_config["use_global_webhook"] = request.use_global_webhook
     
     try:
-        save_config(config)
+        save_userdata(userdata)
         
         # Runtime aktualisieren
         # Altes Gerät entfernen
@@ -453,16 +498,16 @@ async def update_device(device_name: str, request: UpdateDeviceRequest) -> Dict[
 @app.delete("/api/devices/{device_name}")
 async def delete_device(device_name: str) -> Dict[str, Any]:
     """Löscht ein Gerät"""
-    global config, monitoring_engine
+    global monitoring_engine, userdata
     
     if device_name not in monitoring_engine.devices:
         raise HTTPException(status_code=404, detail="Device not found")
         
     # Aus Config entfernen
-    config["devices"] = [d for d in config.get("devices", []) if d["name"] != device_name]
+    userdata["devices"] = [d for d in userdata.get("devices", []) if d["name"] != device_name]
     
     try:
-        save_config(config)
+        save_userdata(userdata)
         
         # Aus Runtime entfernen
         del monitoring_engine.devices[device_name]
@@ -483,19 +528,19 @@ class SettingsRequest(BaseModel):
 async def get_settings() -> Dict[str, Any]:
     """Gibt die globalen Einstellungen zurück"""
     return {
-        "teams_webhook_url": config.get("teams_webhook_url", "")
+        "teams_webhook_url": userdata.get("teams_webhook_url", "")
     }
 
 
 @app.post("/api/settings")
 async def save_settings(request: SettingsRequest) -> Dict[str, Any]:
     """Speichert die globalen Einstellungen"""
-    global config, teams_notifier
+    global teams_notifier, userdata
     
-    config["teams_webhook_url"] = request.teams_webhook_url
+    userdata["teams_webhook_url"] = request.teams_webhook_url
     
     try:
-        save_config(config)
+        save_userdata(userdata)
         
         # Runtime aktualisieren
         teams_notifier.webhook_url = request.teams_webhook_url

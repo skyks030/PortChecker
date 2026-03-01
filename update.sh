@@ -18,22 +18,13 @@ fi
 
 echo "🔄 Update available! Starting update process..."
 
-# Backup config
-echo "💾 Backing up configuration..."
-cp config.yaml config.yaml.bak
-
 # Update code
 echo "📥 Downloading changes..."
 # Stash any local changes (conflicts prevention)
 git stash
 git pull
 
-# Merge/Restore config
-# Note: We prefer the user's local config over the incoming default one.
-echo "♻️ Restoring configuration..."
-if [ -f config.yaml.bak ]; then
-    mv config.yaml.bak config.yaml
-fi
+git pull
 
 # Rebuild container
 echo "🏗️ Rebuilding container..."

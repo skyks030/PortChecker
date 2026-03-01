@@ -11,8 +11,9 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Make scripts executable
+# Make scripts and dirs
 chmod +x update.sh
+mkdir -p data
 
 # Stop and remove existing container if it exists (to avoid name conflicts)
 echo "🧹 Cleaning up old installations..."
