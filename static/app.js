@@ -46,9 +46,10 @@ class PortCheckerApp {
         }
     }
 
-    showAddServerModal(show) {
+    async showAddServerModal(show) {
         const modal = document.getElementById('add-server-modal');
         if (show) {
+            await this.populateWebhookCheckboxes('add-global-webhooks-list');
             modal.classList.add('active');
             modal.classList.remove('hidden');
         } else {
@@ -57,14 +58,50 @@ class PortCheckerApp {
         }
     }
 
-    showEditServerModal(show) {
+    async showEditServerModal(show) {
         const modal = document.getElementById('edit-server-modal');
         if (show) {
+            await this.populateWebhookCheckboxes('edit-global-webhooks-list');
             modal.classList.add('active');
             modal.classList.remove('hidden');
         } else {
             modal.classList.remove('active');
             setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+    }
+    
+    async populateWebhookCheckboxes(containerId, selected = []) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        
+        container.innerHTML = '<span class="loading-indicator"></span> Loading webhooks...';
+        
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            const webhooks = data.global_webhooks || [];
+            
+            container.innerHTML = '';
+            if(webhooks.length === 0) {
+                container.innerHTML = '<small style="color: var(--text-secondary);">No global webhooks configured in Settings.</small>';
+                return;
+            }
+            
+            webhooks.forEach((wh, idx) => {
+                const isChecked = selected.includes(wh.alias) || (selected.length === 0 && wh.alias === "Default"); 
+                // Default check "Default" if nothing is selected (e.g. adding new)
+                
+                const html = `
+                    <label class="checkbox-container">
+                        ${wh.alias}
+                        <input type="checkbox" class="global-webhook-checkbox" value="${wh.alias}" ${isChecked ? 'checked' : ''}>
+                        <span class="checkmark"></span>
+                    </label>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        } catch (e) {
+            container.innerHTML = '<small style="color: var(--error-color);">Error loading webhooks.</small>';
         }
     }
 
@@ -115,7 +152,20 @@ class PortCheckerApp {
             settingsForm.addEventListener('submit', (e) => this.handleSaveSettings(e));
         }
 
-        addListener('test-webhook-btn', 'click', () => this.handleTestWebhook());
+        const settingsContainer = document.getElementById('global-webhooks-container');
+        if (settingsContainer) {
+            settingsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('test-webhook-btn')) {
+                    const row = e.target.closest('.webhook-row');
+                    const url = row.querySelector('.webhook-url').value;
+                    this.handleTestWebhook(url, e.target);
+                } else if (e.target.classList.contains('remove-webhook-btn')) {
+                    e.target.closest('.webhook-row').remove();
+                }
+            });
+        }
+        
+        addListener('add-global-webhook-btn', 'click', () => this.addWebhookRow());
 
         const editServerForm = document.getElementById('edit-server-form');
         if (editServerForm) {
@@ -141,27 +191,72 @@ class PortCheckerApp {
         try {
             const res = await fetch('/api/settings');
             const data = await res.json();
-            document.getElementById('settings-webhook').value = data.teams_webhook_url || '';
+            const webhooks = data.global_webhooks || [];
+            
+            const container = document.getElementById('global-webhooks-container');
+            container.innerHTML = '';
+            
+            webhooks.forEach(wh => {
+                this.addWebhookRow(wh.alias, wh.url);
+            });
+            
+            if(webhooks.length === 0) {
+                this.addWebhookRow();
+            }
         } catch (e) {
             console.error(e);
         }
     }
+    
+    addWebhookRow(alias = '', url = '') {
+        const container = document.getElementById('global-webhooks-container');
+        const row = document.createElement('div');
+        row.className = 'webhook-row';
+        row.style.display = 'flex';
+        row.style.gap = '10px';
+        row.style.alignItems = 'flex-start';
+        row.style.backgroundColor = 'var(--bg-tertiary)';
+        row.style.padding = '10px';
+        row.style.borderRadius = 'var(--border-radius)';
+        row.style.position = 'relative';
+        
+        row.innerHTML = `
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <input type="text" class="webhook-alias" placeholder="Alias (e.g. Default, Alerts)" value="${alias}" required style="padding: 8px;" />
+                <input type="url" class="webhook-url" placeholder="https://outlook.office.com/webhook/..." value="${url}" required style="padding: 8px;" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button type="button" class="secondary-btn test-webhook-btn" style="padding: 8px;">Test</button>
+                <button type="button" class="secondary-btn remove-webhook-btn" style="padding: 8px; border-color: var(--error-color); color: var(--error-color);">X</button>
+            </div>
+        `;
+        container.appendChild(row);
+    }
 
     async handleSaveSettings(e) {
         e.preventDefault();
-        const form = e.target;
         const msgDiv = document.getElementById('settings-message');
-        const url = form.querySelector('#settings-webhook').value;
-        const btn = form.querySelector('button');
+        const btn = e.target.querySelector('button[type="submit"]');
+        
+        const rows = document.querySelectorAll('.webhook-row');
+        const globalWebhooks = [];
+        
+        rows.forEach(row => {
+            const alias = row.querySelector('.webhook-alias').value.trim();
+            const url = row.querySelector('.webhook-url').value.trim();
+            if (alias && url) {
+                globalWebhooks.push({ alias, url });
+            }
+        });
 
         btn.disabled = true;
-        msgDiv.textContent = "Speichere...";
+        msgDiv.textContent = "Saving...";
 
         try {
             const response = await fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teams_webhook_url: url })
+                body: JSON.stringify({ global_webhooks: globalWebhooks })
             });
 
             if (response.ok) {
@@ -181,10 +276,8 @@ class PortCheckerApp {
         }
     }
 
-    async handleTestWebhook() {
+    async handleTestWebhook(url, btn) {
         const msgDiv = document.getElementById('settings-message');
-        const url = document.getElementById('settings-webhook').value;
-        const btn = document.getElementById('test-webhook-btn');
 
         if (!url) {
             msgDiv.textContent = "Please enter a Webhook URL before testing.";
@@ -193,6 +286,8 @@ class PortCheckerApp {
         }
 
         btn.disabled = true;
+        let originalText = btn.textContent;
+        btn.textContent = "...";
         msgDiv.textContent = "Sending test message...";
         msgDiv.style.color = "var(--text-secondary)";
 
@@ -200,7 +295,7 @@ class PortCheckerApp {
             const response = await fetch('/api/settings/test-webhook', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teams_webhook_url: url })
+                body: JSON.stringify({ url: url })
             });
             const res = await response.json();
 
@@ -215,6 +310,7 @@ class PortCheckerApp {
             msgDiv.style.color = "var(--error-color)";
         } finally {
             btn.disabled = false;
+            btn.textContent = originalText;
         }
     }
 
@@ -249,10 +345,13 @@ class PortCheckerApp {
         document.getElementById('edit-server-ports').value = ports;
         document.getElementById('edit-ping-enabled').checked = !!pingCheck;
         document.getElementById('edit-notifications-enabled').checked = device.notifications_enabled !== false;
-        document.getElementById('edit-global-notifications-enabled').checked = device.use_global_webhook !== false;
         document.getElementById('edit-server-webhook').value = device.webhook_url || '';
 
-        this.showEditServerModal(true);
+        this.showEditServerModal(true).then(() => {
+            // override the checkboxes based on device.global_webhooks
+            const selected = device.global_webhooks || [];
+            this.populateWebhookCheckboxes('edit-global-webhooks-list', selected);
+        });
     }
 
     async handleUpdateServer(e) {
@@ -267,8 +366,11 @@ class PortCheckerApp {
         const portsStr = document.getElementById('edit-server-ports').value;
         const pingEnabled = document.getElementById('edit-ping-enabled').checked;
         const notificationsEnabled = document.getElementById('edit-notifications-enabled').checked;
-        const globalNotificationsEnabled = document.getElementById('edit-global-notifications-enabled').checked;
         const webhookUrl = document.getElementById('edit-server-webhook').value;
+        
+        const globalWebhooks = Array.from(document.querySelectorAll('#edit-global-webhooks-list .global-webhook-checkbox'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
 
         const ports = portsStr.split(',')
             .map(p => parseInt(p.trim()))
@@ -293,7 +395,7 @@ class PortCheckerApp {
                     ports,
                     ping_enabled: pingEnabled,
                     notifications_enabled: notificationsEnabled,
-                    use_global_webhook: globalNotificationsEnabled,
+                    global_webhooks: globalWebhooks,
                     webhook_url: webhookUrl ? webhookUrl : null
                 })
             });
@@ -381,8 +483,11 @@ class PortCheckerApp {
         const portsStr = form.querySelector('#server-ports').value;
         const pingEnabled = form.querySelector('#ping-enabled').checked;
         const notificationsEnabled = form.querySelector('#notifications-enabled').checked;
-        const globalNotificationsEnabled = form.querySelector('#global-notifications-enabled').checked;
         const webhookUrl = form.querySelector('#server-webhook').value;
+        
+        const globalWebhooks = Array.from(form.querySelectorAll('#add-global-webhooks-list .global-webhook-checkbox'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
 
         // specific parsing
         const ports = portsStr.split(',')
@@ -410,7 +515,7 @@ class PortCheckerApp {
                     host,
                     ports,
                     webhook_url: webhookUrl ? webhookUrl : null,
-                    use_global_webhook: globalNotificationsEnabled,
+                    global_webhooks: globalWebhooks,
                     notifications_enabled: notificationsEnabled,
                     ping_enabled: pingEnabled
                 })

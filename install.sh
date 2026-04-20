@@ -23,6 +23,22 @@ docker rm portchecker 2>/dev/null || true
 docker stop studio-hilfe 2>/dev/null || true
 docker rm studio-hilfe 2>/dev/null || true
 
+# Check if port 8000 is available
+echo "🔍 Checking if port 8000 is available..."
+if command -v lsof &> /dev/null; then
+    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null ; then
+        echo "❌ Error: Port 8000 is already in use by another application!"
+        echo "Please stop whatever is using port 8000 and run this script again."
+        exit 1
+    fi
+elif command -v nc &> /dev/null; then
+    if nc -z localhost 8000 2>/dev/null; then
+        echo "❌ Error: Port 8000 is already in use by another application!"
+        echo "Please stop whatever is using port 8000 and run this script again."
+        exit 1
+    fi
+fi
+
 # Build and start container
 echo "🚀 Building and starting container..."
 docker compose up -d --build

@@ -22,14 +22,11 @@
                 </div>
                 <div class="result-content" style="padding: 1.5rem;">
                     <form id="settings-form">
-                        <div class="form-group">
-                            <label for="settings-webhook">Global Teams Webhook URL</label>
-                            <input type="url" id="settings-webhook" name="webhook-url"
-                                placeholder="https://outlook.office.com/webhook/...">
-                            <small>Used as fallback or general webhook</small>
+                        <div id="global-webhooks-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
+                            <!-- Injected dynamically -->
                         </div>
+                        <button type="button" id="add-global-webhook-btn" class="secondary-btn" style="margin-bottom: 20px; font-size: 0.9rem; padding: 5px 10px;">+ Add Webhook</button>
                         <div class="button-group" style="display: flex; gap: 10px;">
-                            <button type="button" id="test-webhook-btn" class="secondary-btn">Test Message</button>
                             <button type="submit" class="primary-btn">Save</button>
                         </div>
                         <div id="settings-message" style="margin-top: 1rem;"></div>
@@ -126,14 +123,12 @@
                                 <small>Sends messages to the global Teams Webhook</small>
                             </div>
 
-                            <div class="form-group checkbox-group">
-                                <label class="checkbox-container">
-                                    Send to Global Webhook
-                                    <input type="checkbox" id="global-notifications-enabled"
-                                        name="global-notifications-enabled" checked>
-                                    <span class="checkmark"></span>
-                                </label>
-                                <small>Sends messages to the channel configured in Settings</small>
+                            <div class="form-group">
+                                <label style="margin-bottom: 0.5rem; display: block;">Send to Global Webhooks</label>
+                                <div id="add-global-webhooks-list" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Injected by JS -->
+                                </div>
+                                <small>Select which global webhooks should receive notifications for this server.</small>
                             </div>
 
                             <div class="form-group">
@@ -198,14 +193,12 @@
                                 <small>Main switch: Allows sending error messages for this server</small>
                             </div>
 
-                            <div class="form-group checkbox-group">
-                                <label class="checkbox-container">
-                                    Send to Global Webhook
-                                    <input type="checkbox" id="edit-global-notifications-enabled"
-                                        name="global-notifications-enabled">
-                                    <span class="checkmark"></span>
-                                </label>
-                                <small>Sends messages to the channel configured in Settings</small>
+                            <div class="form-group">
+                                <label style="margin-bottom: 0.5rem; display: block;">Send to Global Webhooks</label>
+                                <div id="edit-global-webhooks-list" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Injected by JS -->
+                                </div>
+                                <small>Select which global webhooks should receive notifications for this server.</small>
                             </div>
 
                             <div class="form-group">
