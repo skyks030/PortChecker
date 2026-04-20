@@ -1,0 +1,5 @@
+spawn ssh -o StrictHostKeyChecking=no snp@192.168.10.25 "ifconfig; netstat -rn; pmset -g; pmset -g custom; arp -a; sysctl net.inet.tcp.keepinit"
+set timeout 15
+expect "assword:"
+send "snp1\r"
+expect eof

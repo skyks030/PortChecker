@@ -1,0 +1,8 @@
+spawn ssh -o StrictHostKeyChecking=no snp@192.168.10.25
+set timeout 10
+expect "assword:"
+send "snp1\r"
+expect "% "
+send "/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate; /usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode\r"
+expect "% "
+send "exit\r"

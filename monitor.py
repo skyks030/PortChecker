@@ -63,8 +63,15 @@ class PingCheck(BaseCheck):
             return CheckResult(CheckStatus.UNKNOWN, error="Kein Ziel angegeben")
         
         # Ping-Befehl abhängig vom Betriebssystem
-        param = "-n" if platform.system().lower() == "windows" else "-c"
-        command = ["ping", param, "1", "-W", "3", target]
+        sys_name = platform.system().lower()
+        if sys_name == "windows":
+            command = ["ping", "-n", "3", "-w", "3000", target]
+        elif sys_name == "darwin":
+            # macOS ping -W erwartet Millisekunden
+            command = ["ping", "-c", "3", "-W", "3000", target]
+        else:
+            # Linux ping -W erwartet Sekunden
+            command = ["ping", "-c", "3", "-W", "3", target]
         
         try:
             start_time = asyncio.get_event_loop().time()
@@ -78,7 +85,7 @@ class PingCheck(BaseCheck):
             
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
-                timeout=5.0
+                timeout=10.0
             )
             
             response_time = (asyncio.get_event_loop().time() - start_time) * 1000
